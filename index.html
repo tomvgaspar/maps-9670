@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1e293b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Territórios">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Territórios</title>
+<style>
+:root{--bg:#fff;--bg2:#f8f8f8;--bg3:#efefef;--text:#111;--text2:#666;--bd:rgba(0,0,0,.1);--bd2:rgba(0,0,0,.18);--acc:#1e293b;--acc-fg:#fff;--r:12px;--rsm:8px;--red:#dc2626;--redbg:#fef2f2;--redbdr:#fecaca;--green:#15803d;--greenbg:#f0fdf4;--amber:#92400e;--amberbg:#fffbeb}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--bg2:#1c1c1e;--bg3:#2c2c2e;--text:#f0f0f0;--text2:#888;--bd:rgba(255,255,255,.1);--bd2:rgba(255,255,255,.18);--acc:#e2e8f0;--acc-fg:#111}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;color:var(--text);background:var(--bg)}
+#root{max-width:680px;margin:0 auto;padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:.5px solid var(--bd);padding:env(safe-area-inset-top) 14px 10px;margin-bottom:0}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;padding-top:6px}
+.appname{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.sync-dot{font-size:11px;padding:3px 9px;border:.5px solid var(--bd);border-radius:20px;color:var(--text2)}
+.content{padding:12px 14px}
+.nav{position:fixed;bottom:0;left:0;right:0;max-width:680px;margin:0 auto;background:var(--bg);border-top:.5px solid var(--bd);z-index:50;display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border:none;background:transparent;cursor:pointer;font-size:10px;color:var(--text2);font-family:inherit;transition:color .15s;position:relative;min-height:52px}
+.nb.act{color:var(--acc)}
+.nb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nb.act svg{stroke-width:2.2}
+.nb-badge{position:absolute;top:6px;right:calc(50% - 16px);background:var(--red);color:#fff;border-radius:20px;font-size:9px;padding:1px 5px;font-weight:700;min-width:16px;text-align:center}
+.card{background:var(--bg);border:.5px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:9px}
+.tap{cursor:pointer;transition:background .12s}.tap:active{background:var(--bg2)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rb{display:flex;align-items:center;justify-content:space-between;gap:8px}
+input,select,textarea{width:100%;padding:11px 13px;border:.5px solid var(--bd2);border-radius:var(--rsm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);background:var(--bg)}
+input[type=date]{color-scheme:light dark}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.btn{padding:10px 16px;border:.5px solid var(--bd2);border-radius:var(--rsm);background:transparent;color:var(--text);cursor:pointer;font-size:14px;font-family:inherit;transition:all .15s;white-space:nowrap;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{opacity:.7;transform:scale(.98)}
+.btnp{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
+.btnd{color:var(--red);border-color:var(--redbdr)}.btnd:active{background:var(--redbg)}
+.sm{padding:7px 12px;font-size:13px;min-height:36px}
+.lbl{font-size:13px;color:var(--text2);margin-bottom:5px;display:block}
+.fg{margin-bottom:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sep{height:.5px;background:var(--bd);margin:12px 0}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:500}
+.bH{background:#dbeafe;color:#1e40af}.bM{background:#fce7f3;color:#9d174d}.bC{background:#dcfce7;color:#166534}
+.bcat{background:var(--bg2);color:var(--text2);font-size:12px;padding:3px 8px;border-radius:20px}
+.btag{background:#fef3c7;color:var(--amber);font-size:11px;padding:2px 8px;border-radius:20px}
+.bpub{background:#fde68a;color:var(--amber)}
+.bfree{background:#bbf7d0;color:var(--green)}
+.balert{background:var(--redbg);color:var(--red)}
+.chip{padding:7px 13px;border-radius:20px;border:.5px solid var(--bd2);cursor:pointer;font-size:13px;transition:all .15s;display:inline-block;margin:3px}
+.chip.sel{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
+.empty{text-align:center;color:var(--text2);font-size:14px;padding:36px 0;line-height:1.6}
+.back{cursor:pointer;color:var(--text2);font-size:14px;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;min-height:44px}
+.logrow{padding:7px 0;border-bottom:.5px solid var(--bd);font-size:13px;color:var(--text2)}
+.logrow:last-child{border-bottom:none}
+.ladd{color:var(--green)}.ldel{color:var(--red)}
+.ch{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)}
+.mlink{color:#2563eb;font-size:13px;text-decoration:none}
+.addr-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:.5px solid var(--bd)}
+.addr-row:last-child{border-bottom:none}
+.alert-box{background:var(--redbg);border:.5px solid var(--redbdr);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.alert-title{font-size:14px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.alert-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:.5px solid var(--redbdr);font-size:13px;color:var(--red)}
+.alert-row:last-child{border-bottom:none}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border:.5px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+@media(min-width:420px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+.kpi-cell{background:var(--bg);padding:10px 12px}
+.kpi-lbl{font-size:11px;color:var(--text2);margin-bottom:3px}
+.kpi-val{font-size:17px;font-weight:700}
+.kv-b{color:#2563eb}.kv-r{color:var(--red)}.kv-g{color:var(--green)}
+.charts-row{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+@media(min-width:420px){.charts-row{grid-template-columns:repeat(3,1fr)}}
+.chart-box{background:var(--bg);border:.5px solid var(--bd);border-radius:var(--r);padding:12px}
+.chart-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:72px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%}
+.bar-val{font-size:13px;font-weight:700}
+.bar-body{width:100%;background:var(--bg3);border-radius:3px 3px 0 0}
+.bar-lbl{font-size:10px;color:var(--text2);text-align:center;line-height:1.3}
+.tbl-wrap{overflow-x:auto;margin:0 -14px;padding:0 14px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:460px}
+th{font-size:11px;font-weight:700;color:var(--text2);text-align:left;padding:8px 8px;border-bottom:.5px solid var(--bd);background:var(--bg2);white-space:nowrap}
+td{padding:9px 8px;border-bottom:.5px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.td-name{font-weight:600;cursor:pointer;color:var(--text)}.td-name:hover{text-decoration:underline}
+.td-num{color:var(--text2);font-size:11px;margin-right:3px}
+.mo-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;z-index:200}
+@media(min-width:480px){.mo-ov{align-items:center;padding:20px}}
+.mo{background:var(--bg);border-radius:var(--r) var(--r) 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));width:100%;max-height:94vh;overflow-y:auto}
+@media(min-width:480px){.mo{border-radius:var(--r);max-width:450px;margin:0 auto;padding-bottom:20px}}
+.mo-handle{width:36px;height:4px;background:var(--bg3);border-radius:2px;margin:0 auto 18px}
+.mo-title{font-size:17px;font-weight:700;margin-bottom:16px}
+.tog{padding:8px 14px;border-radius:20px;border:.5px solid var(--bd2);cursor:pointer;font-size:13px;background:transparent;color:var(--text2);font-family:inherit;min-height:36px;transition:all .15s}
+.tog.on{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
+.asgn-box{background:var(--bg2);border-radius:var(--rsm);padding:11px 13px;margin-bottom:9px;border:.5px solid var(--bd)}
+.pill-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.rcard{background:var(--bg2);border-radius:var(--rsm);padding:11px;margin-bottom:8px}
+.load{display:flex;align-items:center;justify-content:center;height:50vh;color:var(--text2);font-size:15px;flex-direction:column;gap:12px}
+.spinner{width:28px;height:28px;border:2.5px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sec{font-size:16px;font-weight:700;margin-bottom:12px}
+.hint{font-size:12px;color:var(--text2);margin-top:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+// ===== FIREBASE =====
+firebase.initializeApp({
+  apiKey:"AIzaSyBY-7xUGWROoBh2qaDUfJGGXiTE7VbnS28",
+  authDomain:"territorios-9670.firebaseapp.com",
+  projectId:"territorios-9670",
+  storageBucket:"territorios-9670.firebasestorage.app",
+  messagingSenderId:"720445248642",
+  appId:"1:720445248642:web:59cce954388283a614509b"
+});
+const db = firebase.firestore();
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+
+// ===== UTILS =====
+const tsMs = ts => { if(!ts) return null; if(typeof ts==='number') return ts; if(ts.toMillis) return ts.toMillis(); if(ts.seconds) return ts.seconds*1000; return null; };
+const fmt = d => d ? new Date(d).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+const fmtFull = d => d ? new Date(d).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const msToWeeks = ms => Math.round(ms/(7*24*3600000));
+const weeksMs = n => n*7*24*3600000;
+const TL = {H:'Homem',M:'Mulher',C:'Casal'};
+const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+const fromDate = d => firebase.firestore.Timestamp.fromDate(new Date(d));
+const {useState,useEffect,useCallback,useMemo,useRef} = React;
+
+// ===== STATS =====
+function calcStats(territories, addresses, publishers, assignments) {
+  const now = Date.now();
+  const active = assignments.filter(a=>!a.returnedAt);
+  const done = assignments.filter(a=>a.returnedAt);
+  const activeTids = new Set(active.map(a=>a.territoryId));
+  const everTids = new Set(assignments.map(a=>a.territoryId));
+  const last12 = now - 365*24*3600000;
+  const doneLast12 = done.filter(a=>a.returnedAt>=last12);
+  const doneLast6 = done.filter(a=>a.returnedAt>=(now-weeksMs(26)));
+  const doneLast3 = done.filter(a=>a.returnedAt>=(now-weeksMs(13)));
+  const pubsActive = new Set(assignments.filter(a=>a.assignedAt>=last12&&a.publisherId).map(a=>a.publisherId));
+  const wks = done.filter(a=>a.weeksToComplete>0).map(a=>a.weeksToComplete);
+  const avgWeeks = wks.length ? Math.round(wks.reduce((s,x)=>s+x,0)/wks.length) : 0;
+  const alerts = active.filter(a=>a.assignedAt<(now-weeksMs(26)));
+  const unworked = territories.filter(t=>!everTids.has(t.id));
+  return {
+    total:territories.length, withPub:activeTids.size, notAssigned:territories.length-activeTids.size,
+    totalAddresses:addresses.length, doneLast3:doneLast3.length, doneLast6:doneLast6.length, doneLast12:doneLast12.length,
+    completedPct:territories.length?Math.round(doneLast12.length/territories.length*100):0,
+    inProgress:active.length, inProg3:active.filter(a=>a.assignedAt<(now-weeksMs(13))).length,
+    inProg6:active.filter(a=>a.assignedAt<(now-weeksMs(26))).length,
+    unworked:unworked.length, unw6:unworked.filter(t=>t.createdAt<(now-weeksMs(26))).length,
+    unw12:unworked.filter(t=>t.createdAt<(now-52*7*24*3600000)).length,
+    unw24:unworked.filter(t=>t.createdAt<(now-104*7*24*3600000)).length,
+    avgWeeks, coveragePct:territories.length?Math.round(doneLast12.length/territories.length*100):0,
+    participationPct:publishers.length?Math.round(pubsActive.size/publishers.length*100):0, alerts
+  };
+}
+
+// ===== APP =====
+function App() {
+  const [territories,setTerritories] = useState([]);
+  const [addresses,setAddresses] = useState([]);
+  const [addressLog,setAddressLog] = useState([]);
+  const [publishers,setPublishers] = useState([]);
+  const [assignments,setAssignments] = useState([]);
+  const [settings,setSettings] = useState({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});
+  const [loading,setLoading] = useState(true);
+  const [view,setView] = useState('dashboard');
+  const [selTid,setSelTid] = useState(null);
+  const [modal,setModal] = useState(null);
+  const loaded = useRef(0);
+
+  useEffect(()=>{
+    const check = () => { loaded.current++; if(loaded.current>=5) setLoading(false); };
+    const subs = [
+      db.collection('territories').orderBy('createdAt').onSnapshot(s=>{setTerritories(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));check();},(e)=>check()),
+      db.collection('addresses').onSnapshot(s=>{setAddresses(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),createdAt:tsMs(d.data().createdAt)||Date.now()})));check();},(e)=>check()),
+      db.collection('addressLog').orderBy('timestamp').onSnapshot(s=>{setAddressLog(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),timestamp:tsMs(d.data().timestamp)||Date.now()})));check();},(e)=>check()),
+      db.collection('publishers').onSnapshot(s=>{setPublishers(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));check();},(e)=>check()),
+      db.collection('assignments').onSnapshot(s=>{setAssignments(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));check();},(e)=>check()),
+    ];
+    db.collection('config').doc('settings').onSnapshot(d=>{ if(d.exists()) setSettings(d.data()); });
+    return () => subs.forEach(u=>u());
+  },[]);
+
+  const curT = useMemo(()=>selTid?territories.find(t=>t.id===selTid):null,[territories,selTid]);
+  const stats = useMemo(()=>calcStats(territories,addresses,publishers,assignments),[territories,addresses,publishers,assignments]);
+
+  const saveSettings = async s => { await db.collection('config').doc('settings').set(s); setSettings(s); };
+
+  const ops = {
+    addTerritory: async f => { await db.collection('territories').add({num:f.num||'',name:f.name,category:f.category,mapsLink:f.mapsLink||'',createdAt:TS()}); setModal(null); },
+    delTerritory: async id => {
+      if(!confirm('Apagar território e todas as moradas?')) return;
+      const batch = db.batch();
+      addresses.filter(a=>a.territoryId===id).forEach(a=>batch.delete(db.collection('addresses').doc(a.id)));
+      assignments.filter(a=>a.territoryId===id).forEach(a=>batch.delete(db.collection('assignments').doc(a.id)));
+      batch.delete(db.collection('territories').doc(id));
+      await batch.commit();
+      setView('territories'); setSelTid(null);
+    },
+    addAddress: async (tid, f) => {
+      const t = territories.find(x=>x.id===tid);
+      const dateTs = fromDate(f.date||todayStr());
+      await db.collection('addresses').add({territoryId:tid,text:f.text,type:f.type,date:dateTs,createdAt:TS()});
+      await db.collection('addressLog').add({action:'add',territoryId:tid,territoryName:t?.name||'',addressText:f.text,addressType:f.type,date:dateTs,timestamp:TS()});
+      setModal(null);
+    },
+    deleteAddress: async (addr, date) => {
+      const t = territories.find(x=>x.id===addr.territoryId);
+      await db.collection('addresses').doc(addr.id).delete();
+      await db.collection('addressLog').add({action:'delete',territoryId:addr.territoryId,territoryName:t?.name||'',addressText:addr.text,addressType:addr.type,date:fromDate(date||todayStr()),timestamp:TS()});
+      setModal(null);
+    },
+    addPublisher: async f => { await db.collection('publishers').add({name:f.name,serviceGroup:f.serviceGroup||'',createdAt:TS()}); setModal(null); },
+    delPublisher: async id => { if(!confirm('Apagar publicador?')) return; await db.collection('publishers').doc(id).delete(); },
+    addCategory: async name => { if(!name||settings.categories.includes(name)) return; await saveSettings({...settings,categories:[...settings.categories,name]}); setModal(null); },
+    delCategory: async name => { if(!confirm('Apagar categoria?')) return; await saveSettings({...settings,categories:settings.categories.filter(c=>c!==name)}); },
+    addCampaign: async name => { if(!name||settings.campaigns.includes(name)) return; await saveSettings({...settings,campaigns:[...settings.campaigns,name]}); setModal(null); },
+    delCampaign: async name => { if(!confirm('Apagar campanha?')) return; await saveSettings({...settings,campaigns:settings.campaigns.filter(c=>c!==name)}); },
+    addAssignment: async f => {
+      await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:TS(),returnedAt:null,weeksToComplete:null,notes:f.notes||''});
+      setModal(null);
+    },
+    returnAssignment: async id => {
+      if(!confirm('Marcar como devolvido?')) return;
+      const a = assignments.find(x=>x.id===id);
+      if(!a) return;
+      const weeks = a.assignedAt ? msToWeeks(Date.now()-a.assignedAt) : null;
+      await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:weeks});
+    }
+  };
+
+  const openTerritory = t => { setSelTid(t.id); setView('terr-detail'); };
+  const navTo = k => { if(k!=='territories') setSelTid(null); setView(k); };
+
+  const navs = [
+    {k:'dashboard',l:'Início',icon:e('svg',{viewBox:'0 0 24 24'},e('rect',{x:'3',y:'3',width:'7',height:'7'}),e('rect',{x:'14',y:'3',width:'7',height:'7'}),e('rect',{x:'3',y:'14',width:'7',height:'7'}),e('rect',{x:'14',y:'14',width:'7',height:'7'}))},
+    {k:'territories',l:'Territórios',icon:e('svg',{viewBox:'0 0 24 24'},e('polygon',{points:'3,6 9,3 15,6 21,3 21,18 15,21 9,18 3,21'}),e('line',{x1:'9',y1:'3',x2:'9',y2:'18'}),e('line',{x1:'15',y1:'6',x2:'15',y2:'21'}))},
+    {k:'publishers',l:'Publicadores',icon:e('svg',{viewBox:'0 0 24 24'},e('path',{d:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'}),e('circle',{cx:'9',cy:'7',r:'4'}),e('path',{d:'M23 21v-2a4 4 0 0 0-3-3.87'}),e('path',{d:'M16 3.13a4 4 0 0 1 0 7.75'}))},
+    {k:'assignments',l:'Atribuições',icon:e('svg',{viewBox:'0 0 24 24'},e('path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}),e('polyline',{points:'14,2 14,8 20,8'}),e('line',{x1:'16',y1:'13',x2:'8',y2:'13'}),e('line',{x1:'16',y1:'17',x2:'8',y2:'17'}),e('polyline',{points:'10,9 9,9 8,9'}))},
+    {k:'settings',l:'Definições',icon:e('svg',{viewBox:'0 0 24 24'},e('circle',{cx:'12',cy:'12',r:'3'}),e('path',{d:'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'}))}
+  ];
+
+  if(loading) return e('div',{className:'load'},e('div',{className:'spinner'}),e('span',null,'A carregar...'));
+
+  return e('div',null,
+    e('div',{className:'topbar'},e('div',{className:'topbar-inner'},e('span',{className:'appname'},'Territórios'),e('span',{className:'sync-dot'},'☁ sync'))),
+    e('div',{className:'content'},
+      view==='dashboard' && e(Dashboard,{territories,addresses,addressLog,publishers,assignments,settings,stats,onOpen:openTerritory,onGoAssignments:()=>navTo('assignments')}),
+      view==='territories' && e(TerritoriesView,{territories,addresses,assignments,settings,onOpen:openTerritory,onAdd:()=>setModal('add-territory')}),
+      view==='terr-detail' && curT && e(TerritoryDetail,{territory:curT,territories,addresses,addressLog,publishers,assignments,settings,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDeleteAddr:addr=>setModal({type:'delete-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment}),
+      view==='publishers' && e(PublishersView,{territories,publishers,assignments,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
+      view==='assignments' && e(AssignmentsView,{territories,publishers,assignments,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openTerritory}),
+      view==='settings' && e(SettingsView,{settings,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign})
+    ),
+    e('nav',{className:'nav'},navs.map(n=>e('button',{key:n.k,className:'nb'+(view===n.k||view==='terr-detail'&&n.k==='territories'?' act':''),onClick:()=>navTo(n.k)},
+      n.k==='assignments'&&stats.alerts.length>0&&e('span',{className:'nb-badge'},stats.alerts.length),
+      n.icon, e('span',null,n.l)
+    ))),
+    modal && e(ModalRoot,{modal,territories,publishers,assignments,settings,onClose:()=>setModal(null),...ops})
+  );
+}
+const e = React.createElement;
+
+// ===== MINIBAR =====
+function MiniBar({value,max,label}) {
+  const h = max>0 ? Math.max(value>0?6:2, Math.round((value/max)*68)) : 2;
+  return e('div',{className:'bar-col'},
+    e('span',{className:'bar-val'},value),
+    e('div',{style:{flex:1,width:'100%',display:'flex',alignItems:'flex-end'}}),
+    e('div',{className:'bar-body',style:{height:h+'px'}}),
+    e('div',{className:'bar-lbl'},label)
+  );
+}
+function Chart({title,bars}) {
+  const max = Math.max(...bars.map(b=>b.v),1);
+  return e('div',{className:'chart-box'},e('div',{className:'chart-title'},title),e('div',{className:'bars'},bars.map((b,i)=>e(MiniBar,{key:i,value:b.v,max,label:b.l}))));
+}
+
+// ===== DASHBOARD =====
+function Dashboard({territories,addresses,addressLog,publishers,assignments,settings,stats,onOpen,onGoAssignments}) {
+  const [search,setSearch] = useState('');
+  const now = Date.now();
+  const activeMap = useMemo(()=>{const m={};assignments.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[assignments]);
+  const doneMap = useMemo(()=>{
+    const cnt={},wks={},last={};
+    assignments.filter(a=>a.returnedAt).forEach(a=>{
+      cnt[a.territoryId]=(cnt[a.territoryId]||0)+1;
+      if(a.weeksToComplete){if(!wks[a.territoryId])wks[a.territoryId]=[];wks[a.territoryId].push(a.weeksToComplete);}
+      if(!last[a.territoryId]||a.returnedAt>last[a.territoryId])last[a.territoryId]=a.returnedAt;
+    });
+    return {cnt,wks,last};
+  },[assignments]);
+
+  const list = useMemo(()=>{
+    let l = territories;
+    if(search) l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));
+    return l.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name));
+  },[territories,search]);
+
+  return e('div',null,
+    stats.alerts.length>0 && e('div',{className:'alert-box'},
+      e('div',{className:'alert-title'},'⚠ '+stats.alerts.length+' território(s) há mais de 6 meses'),
+      stats.alerts.slice(0,3).map(a=>{
+        const t=territories.find(x=>x.id===a.territoryId);
+        const p=a.publisherId?publishers.find(x=>x.id===a.publisherId):null;
+        return e('div',{key:a.id,className:'alert-row'},
+          e('span',null,(t?.num?t.num+' · ':'')+t?.name),
+          e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToWeeks(now-a.assignedAt)+'sem'),
+          e('button',{className:'btn btnd sm',onClick:onGoAssignments},'Ver')
+        );
+      }),
+      stats.alerts.length>3&&e('div',{style:{fontSize:12,color:'var(--red)',paddingTop:4}},'+'+( stats.alerts.length-3)+' mais')
+    ),
+    e('div',{className:'kpi-grid'},
+      [['Total cartões',stats.total,''],['Com publicador',stats.withPub,'kv-b'],['Não designados',stats.notAssigned,''],['Moradas',stats.totalAddresses,''],['Concluídos (12m)',stats.doneLast12+' ('+stats.completedPct+'%)','kv-g'],['Em curso',stats.inProgress,'kv-b'],['Não trabalhados',stats.unworked,'kv-r'],['Semanas médias',stats.avgWeeks||'—',''],['Cobertura 12m',stats.coveragePct+'%','kv-g'],['Participação',stats.participationPct+'%','kv-g']].map(([l,v,c],i)=>
+        e('div',{key:i,className:'kpi-cell'},e('div',{className:'kpi-lbl'},l),e('div',{className:'kpi-val '+(c||'')},v))
+      )
+    ),
+    e('div',{className:'charts-row'},
+      e(Chart,{title:'Concluídos',bars:[{v:stats.doneLast3,l:'3 meses'},{v:stats.doneLast6,l:'6 meses'},{v:stats.doneLast12,l:'12 meses'}]}),
+      e(Chart,{title:'Em curso',bars:[{v:stats.inProgress,l:'Todos'},{v:stats.inProg3,l:'>3 meses'},{v:stats.inProg6,l:'>6 meses'}]}),
+      e(Chart,{title:'Não trabalhados',bars:[{v:stats.unw6,l:'>6 meses'},{v:stats.unw12,l:'>12 meses'},{v:stats.unw24,l:'>24 meses'}]})
+    ),
+    e('div',{className:'rb',style:{marginBottom:9}},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Todos os territórios'),
+      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{width:'auto',maxWidth:180,fontSize:14,padding:'7px 10px'}})
+    ),
+    e('div',{className:'tbl-wrap'},
+      e('table',null,
+        e('thead',null,e('tr',null,e('th',null,'Território'),e('th',null,'Estado'),e('th',null,'Publicador / Grupo'),e('th',null,'Devolvido'),e('th',{style:{textAlign:'center'}},'#'),e('th',{style:{textAlign:'center'}},'Sem.'))),
+        e('tbody',null,list.map(t=>{
+          const a=activeMap[t.id];
+          const p=a?.publisherId?publishers.find(x=>x.id===a.publisherId):null;
+          const cnt=doneMap.cnt[t.id]||0;
+          const wArr=doneMap.wks[t.id]||[];
+          const avgW=wArr.length?Math.round(wArr.reduce((s,x)=>s+x,0)/wArr.length):0;
+          const isAlert=a&&a.assignedAt<(now-weeksMs(26));
+          return e('tr',{key:t.id},
+            e('td',null,e('span',{className:'td-name',onClick:()=>onOpen(t)},t.num&&e('span',{className:'td-num'},t.num+' »'),t.name)),
+            e('td',null,a?e('span',{className:'badge '+(isAlert?'balert':'bpub')},isAlert?'⚠ Alerta':'Atribuído'):e('span',{className:'badge bfree'},'Livre')),
+            e('td',{style:{fontSize:12}},a?(p?.name||a.serviceGroup||'—')+(a.assignedAt?' ('+fmt(a.assignedAt)+')':''):'—'),
+            e('td',{style:{fontSize:12}},fmt(doneMap.last[t.id])),
+            e('td',{style:{textAlign:'center',fontSize:13}},cnt||'—'),
+            e('td',{style:{textAlign:'center',fontSize:13}},avgW||'—')
+          );
+        }))
+      )
+    )
+  );
+}
+
+// ===== TERRITORIES VIEW =====
+function TerritoriesView({territories,addresses,assignments,settings,onOpen,onAdd}) {
+  const [search,setSearch]=useState('');
+  const [filterCat,setFilterCat]=useState('');
+  const activeMap=useMemo(()=>{const m={};assignments.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[assignments]);
+  const grouped=useMemo(()=>{
+    let l=territories;
+    if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));
+    if(filterCat)l=l.filter(t=>t.category===filterCat);
+    const g={};l.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});
+    return g;
+  },[territories,search,filterCat]);
+
+  return e('div',null,
+    e('div',{className:'rb',style:{marginBottom:10}},
+      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
+      e('button',{className:'btn btnp sm',onClick:onAdd},'+  Território')
+    ),
+    e('div',{style:{marginBottom:10,display:'flex',flexWrap:'wrap',gap:3}},
+      e('span',{className:'chip'+(filterCat===''?' sel':''),onClick:()=>setFilterCat('')},'Todos'),
+      settings.categories.map(c=>e('span',{key:c,className:'chip'+(filterCat===c?' sel':''),onClick:()=>setFilterCat(c===filterCat?'':c)},c))
+    ),
+    Object.keys(grouped).length===0&&e('div',{className:'empty'},'Nenhum território.\nClica em "+ Território" para adicionar.'),
+    Object.entries(grouped).map(([cat,terrs])=>e('div',{key:cat},
+      e('div',{className:'ch'},cat+' ('+terrs.length+')'),
+      terrs.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name)).map(t=>{
+        const a=activeMap[t.id];
+        const p=a?.publisherId?null:null;
+        const isAlert=a&&a.assignedAt<(Date.now()-weeksMs(26));
+        const addrCnt=addresses.filter(x=>x.territoryId===t.id).length;
+        return e('div',{key:t.id,className:'card tap',onClick:()=>onOpen(t)},
+          e('div',{className:'rb'},
+            e('div',{style:{flex:1}},
+              e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),
+              e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},addrCnt+' moradas · '+fmt(t.createdAt))
+            ),
+            e('div',{className:'row',style:{gap:5}},
+              isAlert&&e('span',{className:'badge balert'},'⚠'),
+              e('span',{className:'badge '+(a?'bpub':'bfree')},a?'Atribuído':'Livre')
+            )
+          ),
+          a&&(a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg)))
+        );
+      })
+    ))
+  );
+}
+
+// ===== TERRITORY DETAIL =====
+function TerritoryDetail({territory,territories,addresses,addressLog,publishers,assignments,settings,onBack,onAddAddr,onDeleteAddr,onDelete,onAssign,onReturn}) {
+  const [showLog,setShowLog]=useState(false);
+  const addrs=addresses.filter(a=>a.territoryId===territory.id);
+  const logs=addressLog.filter(l=>l.territoryId===territory.id);
+  const activeA=assignments.find(a=>a.territoryId===territory.id&&!a.returnedAt);
+  const pub=activeA?.publisherId?publishers.find(p=>p.id===activeA.publisherId):null;
+  const isAlert=activeA&&activeA.assignedAt<(Date.now()-weeksMs(26));
+  const pastA=assignments.filter(a=>a.territoryId===territory.id&&a.returnedAt);
+  const stats={H:addrs.filter(a=>a.type==='H').length,M:addrs.filter(a=>a.type==='M').length,C:addrs.filter(a=>a.type==='C').length};
+
+  return e('div',null,
+    e('div',{className:'back',onClick:onBack},'← Voltar'),
+    e('div',{className:'card'},
+      e('div',{className:'rb',style:{marginBottom:9}},
+        e('div',null,
+          e('div',{style:{fontWeight:700,fontSize:17}},territory.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},territory.num+' ·'),territory.name),
+          e('span',{className:'bcat badge',style:{marginTop:4}},territory.category)
+        ),
+        e('button',{className:'btn btnd sm',onClick:()=>onDelete(territory.id)},'Apagar')
+      ),
+      territory.mapsLink&&e('a',{href:territory.mapsLink,target:'_blank',rel:'noopener noreferrer',className:'mlink'},'Abrir no Google Maps ↗'),
+      e('div',{className:'sep'}),
+      activeA ? e('div',{className:'asgn-box',style:{borderColor:isAlert?'var(--redbdr)':'var(--bd)',background:isAlert?'var(--redbg)':'var(--bg2)'}},
+        e('div',{className:'rb'},
+          e('div',null,
+            e('div',{style:{fontWeight:600}},pub?.name||activeA.serviceGroup||'Grupo'),
+            e('div',{style:{fontSize:12,color:'var(--text2)'}},(pub?.serviceGroup||activeA.serviceGroup||'')+' · '+fmt(activeA.assignedAt)+(isAlert?' · ⚠ mais de 6 meses!':''))
+          ),
+          e('button',{className:'btn sm',onClick:()=>onReturn(activeA.id)},'Devolver')
+        ),
+        (activeA.tags||[]).length>0&&e('div',{className:'pill-row'},(activeA.tags||[]).map(t=>e('span',{key:t,className:'btag badge'},t)))
+      ) : e('div',{className:'rb',style:{marginBottom:4}},
+        e('span',{style:{fontSize:13,color:'var(--text2)'}},'Nenhum publicador atribuído'),
+        e('button',{className:'btn btnp sm',onClick:onAssign},'Atribuir')
+      ),
+      pastA.length>0&&e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:6}},pastA.length+' atribuição(ões) anteriores · médias '+
+        (()=>{const w=pastA.filter(a=>a.weeksToComplete);return w.length?Math.round(w.reduce((s,a)=>s+a.weeksToComplete,0)/w.length):0;})()+'sem.'),
+      e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:12}},
+        [['H','Homens'],['M','Mulheres'],['C','Casais']].map(([k,l])=>
+          e('div',{key:k,style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px',textAlign:'center',border:'.5px solid var(--bd)'}},
+            e('div',{style:{fontSize:20,fontWeight:700}},stats[k]),e('div',{style:{fontSize:11,color:'var(--text2)'}},l))
+        )
+      )
+    ),
+    e('div',{className:'rb',style:{margin:'14px 0 10px'}},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Moradas ('+addrs.length+')'),
+      e('button',{className:'btn btnp sm',onClick:onAddAddr},'+  Morada')
+    ),
+    addrs.length===0&&e('div',{className:'empty'},'Sem moradas. Adiciona com o botão acima.'),
+    addrs.map(a=>e('div',{key:a.id,className:'addr-row'},
+      e('div',{style:{flex:1}},
+        e('div',{style:{fontSize:14}},a.text),
+        e('div',{style:{fontSize:12,color:'var(--text2)'}},fmt(a.date||a.createdAt))
+      ),
+      e('span',{className:'badge b'+a.type,style:{marginRight:8}},TL[a.type]),
+      e('button',{className:'btn btnd sm',onClick:()=>onDeleteAddr(a)},'×')
+    )),
+    e('div',{style:{marginTop:14}},
+      e('div',{className:'rb',style:{cursor:'pointer'},onClick:()=>setShowLog(!showLog)},
+        e('span',{style:{fontWeight:600,fontSize:14}},'Histórico ('+logs.length+')'),
+        e('span',{style:{color:'var(--text2)',fontSize:13}},showLog?'▲':'▼')
+      ),
+      showLog&&e('div',{style:{marginTop:8}},
+        logs.length===0&&e('div',{className:'empty'},'Sem registos.'),
+        [...logs].reverse().map(l=>e('div',{key:l.id,className:'logrow'},
+          e('span',{className:l.action==='add'?'ladd':'ldel'},l.action==='add'?'+ Adicionado':'− Removido'),
+          ' · ',l.addressText,' · ',TL[l.addressType],' · ',fmt(l.date||l.timestamp)
+        ))
+      )
+    )
+  );
+}
+
+// ===== PUBLISHERS VIEW =====
+function PublishersView({territories,publishers,assignments,onAdd,onDelete}) {
+  const [search,setSearch]=useState('');
+  const filtered=publishers.filter(p=>!search||(p.name+p.serviceGroup).toLowerCase().includes(search.toLowerCase()));
+  const groups={};filtered.forEach(p=>{const c=p.serviceGroup||'Sem grupo';if(!groups[c])groups[c]=[];groups[c].push(p);});
+  return e('div',null,
+    e('div',{className:'rb',style:{marginBottom:12}},
+      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
+      e('button',{className:'btn btnp sm',onClick:onAdd},'+  Publicador')
+    ),
+    filtered.length===0&&e('div',{className:'empty'},'Nenhum publicador.'),
+    Object.entries(groups).map(([grp,pubs])=>e('div',{key:grp},
+      e('div',{className:'ch'},grp+' ('+pubs.length+')'),
+      pubs.map(p=>{
+        const active=assignments.filter(a=>a.publisherId===p.id&&!a.returnedAt);
+        const total=assignments.filter(a=>a.publisherId===p.id).length;
+        return e('div',{key:p.id,className:'card'},
+          e('div',{className:'rb'},
+            e('div',null,
+              e('div',{style:{fontWeight:600,fontSize:15}},p.name),
+              e('div',{style:{fontSize:13,color:'var(--text2)'}},p.serviceGroup||'Sem grupo',' · '+total+' atribuições')
+            ),
+            e('div',{className:'row',style:{gap:6}},
+              active.length>0&&e('span',{className:'badge bpub'},active.length+' em mãos'),
+              e('button',{className:'btn btnd sm',onClick:()=>onDelete(p.id)},'×')
+            )
+          ),
+          active.length>0&&e('div',{className:'pill-row'},active.map(a=>{const t=territories.find(x=>x.id===a.territoryId);return e('span',{key:a.id,className:'bcat badge'},t?.name||'?');}))
+        );
+      })
+    ))
+  );
+}
+
+// ===== ASSIGNMENTS VIEW =====
+function AssignmentsView({territories,publishers,assignments,stats,onAdd,onReturn,onOpen}) {
+  const [active,setActive]=useState(true);
+  const [fGroup,setFGroup]=useState('');
+  const [fTag,setFTag]=useState('');
+  const now=Date.now();
+  const groups=[...new Set(publishers.map(p=>p.serviceGroup||'Sem grupo').concat(assignments.map(a=>a.serviceGroup||'').filter(Boolean)))].filter(Boolean).sort();
+  const tags=[...new Set(assignments.flatMap(a=>a.tags||[]))].sort();
+  const list=useMemo(()=>{
+    let l=active?assignments.filter(a=>!a.returnedAt):assignments.filter(a=>a.returnedAt);
+    if(fGroup){const pids=new Set(publishers.filter(p=>(p.serviceGroup||'Sem grupo')===fGroup).map(p=>p.id));l=l.filter(a=>pids.has(a.publisherId)||(a.serviceGroup||'Sem grupo')===fGroup);}
+    if(fTag)l=l.filter(a=>(a.tags||[]).includes(fTag));
+    return l.sort((a,b)=>b.assignedAt-a.assignedAt);
+  },[assignments,publishers,active,fGroup,fTag]);
+
+  return e('div',null,
+    stats.alerts.length>0&&e('div',{className:'alert-box',style:{marginBottom:10}},e('div',{className:'alert-title'},'⚠ '+stats.alerts.length+' territórios há mais de 6 meses sem devolução')),
+    e('div',{className:'rb',style:{marginBottom:10}},
+      e('div',{className:'row',style:{gap:4}},
+        e('button',{className:'tog'+(active?' on':''),onClick:()=>setActive(true)},'Em mãos ('+assignments.filter(a=>!a.returnedAt).length+')'),
+        e('button',{className:'tog'+(!active?' on':''),onClick:()=>setActive(false)},'Devolvidos')
+      ),
+      e('button',{className:'btn btnp sm',onClick:onAdd},'+  Atribuir')
+    ),
+    (groups.length>1||tags.length>0)&&e('div',{style:{marginBottom:10}},
+      groups.length>1&&e('div',{style:{marginBottom:5}},e('span',{style:{fontSize:12,color:'var(--text2)',marginRight:4}},'Grupo:'),e('span',{className:'chip'+(fGroup===''?' sel':''),onClick:()=>setFGroup('')},'Todos'),...groups.map(g=>e('span',{key:g,className:'chip'+(fGroup===g?' sel':''),onClick:()=>setFGroup(g===fGroup?'':g)},g))),
+      tags.length>0&&e('div',null,e('span',{style:{fontSize:12,color:'var(--text2)',marginRight:4}},'Campanha:'),e('span',{className:'chip'+(fTag===''?' sel':''),onClick:()=>setFTag('')},'Todas'),...tags.map(t=>e('span',{key:t,className:'chip'+(fTag===t?' sel':''),onClick:()=>setFTag(t===fTag?'':t)},t)))
+    ),
+    list.length===0&&e('div',{className:'empty'},'Nenhuma atribuição.'),
+    list.map(a=>{
+      const t=territories.find(x=>x.id===a.territoryId);
+      const p=a.publisherId?publishers.find(x=>x.id===a.publisherId):null;
+      const isAlert=!a.returnedAt&&a.assignedAt<(now-weeksMs(26));
+      const weeks=a.returnedAt?a.weeksToComplete:msToWeeks(now-a.assignedAt);
+      return e('div',{key:a.id,className:'card'},
+        e('div',{className:'rb'},
+          e('div',{style:{flex:1}},
+            e('div',{style:{fontWeight:600,cursor:'pointer'},onClick:()=>t&&onOpen(t)},t?(t.num?t.num+' · ':'')+t.name:'Território apagado'),
+            e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:2}},p?.name||a.serviceGroup||'Grupo',' · ',(p?.serviceGroup||a.serviceGroup||''),' · ',fmt(a.assignedAt))
+          ),
+          e('div',{className:'row',style:{gap:6}},
+            isAlert&&e('span',{className:'badge balert'},'⚠ '+weeks+'sem'),
+            !isAlert&&weeks&&e('span',{style:{fontSize:12,color:'var(--text2)'}},weeks+'sem'),
+            !a.returnedAt&&e('button',{className:'btn sm',onClick:()=>onReturn(a.id)},'Devolver'),
+            a.returnedAt&&e('span',{className:'badge bfree'},'✓ '+fmt(a.returnedAt))
+          )
+        ),
+        (a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg))),
+        a.notes&&e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:5}},a.notes)
+      );
+    })
+  );
+}
+
+// ===== SETTINGS VIEW =====
+function SettingsView({settings,onAddCat,onDelCat,onAddCamp,onDelCamp}) {
+  const Block=({items,onAdd,onDel,label,btn,bg,color})=>e('div',{style:{marginBottom:20}},
+    e('div',{className:'rb',style:{marginBottom:10}},e('span',{style:{fontWeight:700,fontSize:15}},label),e('button',{className:'btn sm',onClick:onAdd},btn)),
+    items.length===0&&e('div',{style:{fontSize:14,color:'var(--text2)'}},'Nenhum ainda.'),
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:7}},items.map(c=>
+      e('div',{key:c,style:{display:'flex',alignItems:'center',gap:6,background:bg||'var(--bg2)',borderRadius:'var(--rsm)',padding:'7px 12px',border:'.5px solid var(--bd)'}},
+        e('span',{style:{fontSize:14,color:color||'var(--text)'}},c),
+        e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:16,lineHeight:1},onClick:()=>onDel(c)},'×')
+      )
+    ))
+  );
+  return e('div',null,
+    e(Block,{items:settings.categories,onAdd:onAddCat,onDel:onDelCat,label:'Categorias de território',btn:'+ Categoria'}),
+    e('div',{className:'sep'}),
+    e(Block,{items:settings.campaigns,onAdd:onAddCamp,onDel:onDelCamp,label:'Campanhas / Tags',btn:'+ Campanha',bg:'#fffbeb',color:'var(--amber)'}),
+    e('div',{className:'sep'}),
+    e('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.6}},
+      e('div',{style:{fontWeight:600,marginBottom:6}},'Segurança da base de dados'),
+      'As regras de segurança do Firestore expiram ao fim de 30 dias. Vai a ',
+      e('strong',null,'console.firebase.google.com'),
+      ' → Firestore → Regras e substitui o conteúdo por:',
+      e('pre',{style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px',fontSize:11,marginTop:8,overflowX:'auto',border:'.5px solid var(--bd)'}},'rules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{db}/documents {\n    match /{doc=**} {\n      allow read, write: if true;\n    }\n  }\n}')
+    )
+  );
+}
+
+// ===== MODAL ROOT =====
+function ModalRoot({modal,territories,publishers,assignments,settings,onClose,addTerritory,addAddress,deleteAddress,addPublisher,addCategory,addCampaign,addAssignment}) {
+  const [form,setForm]=useState({date:todayStr(),tags:[],assignTo:'publisher'});
+  const set=k=>ev=>setForm(f=>({...f,[k]:ev.target.value}));
+  const toggleTag=tag=>setForm(f=>({...f,tags:f.tags.includes(tag)?f.tags.filter(x=>x!==tag):[...f.tags,tag]}));
+  const svcGroups=[...new Set(publishers.map(p=>p.serviceGroup||'').filter(Boolean))].sort();
+
+  const close = () => { onClose(); };
+
+  const body = () => {
+    if(modal==='add-territory') return e('div',null,
+      e('div',{className:'mo-title'},'Novo território'),
+      e('div',{className:'g2'},
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Número'),e('input',{placeholder:'001',value:form.num||'',onChange:set('num')})),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Nome *'),e('input',{placeholder:'Nome do território',value:form.name||'',onChange:set('name'),autoFocus:true}))
+      ),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Categoria *'),e('select',{value:form.category||'',onChange:set('category')},e('option',{value:''},'Selecionar...'),settings.categories.map(c=>e('option',{key:c,value:c},c)))),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Link Google Maps'),e('input',{placeholder:'https://...',value:form.mapsLink||'',onChange:set('mapsLink')})),
+      e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&form.category&&addTerritory(form)},'Guardar'))
+    );
+
+    if(modal?.type==='add-address') return e('div',null,
+      e('div',{className:'mo-title'},'Nova morada'),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Morada *'),e('input',{placeholder:'Ex: Rua das Flores, 12',value:form.text||'',onChange:set('text'),autoFocus:true})),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Tipo *'),e('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginTop:4}},...['H','M','C'].map(t=>e('span',{key:t,className:'chip'+(form.type===t?' sel':''),onClick:()=>setForm(f=>({...f,type:t}))},TL[t])))),
+      e('div',{className:'fg'},
+        e('label',{className:'lbl'},'Data'),
+        e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),
+        e('div',{className:'hint'},'Por defeito hoje — altera se estás a introduzir moradas antigas')
+      ),
+      e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.text&&form.type&&addAddress(modal.territoryId,form)},'Guardar'))
+    );
+
+    if(modal?.type==='delete-address') {
+      const addr=modal.addr;
+      return e('div',null,
+        e('div',{className:'mo-title'},'Remover morada'),
+        e('div',{style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px 13px',marginBottom:14,border:'.5px solid var(--bd)'}},
+          e('div',{style:{fontWeight:600}},addr.text),
+          e('span',{className:'badge b'+addr.type,style:{marginTop:4}},TL[addr.type])
+        ),
+        e('div',{className:'fg'},
+          e('label',{className:'lbl'},'Data de remoção'),
+          e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),
+          e('div',{className:'hint'},'Por defeito hoje — altera se a morada foi removida noutra data')
+        ),
+        e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnd',onClick:()=>deleteAddress(addr,form.date||todayStr())},'Confirmar remoção'))
+      );
+    }
+
+    if(modal==='add-publisher') return e('div',null,
+      e('div',{className:'mo-title'},'Novo publicador'),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Nome *'),e('input',{placeholder:'Nome completo',value:form.name||'',onChange:set('name'),autoFocus:true})),
+      e('div',{className:'fg'},e('label',{className:'lbl'},'Grupo de serviço'),e('input',{placeholder:'Ex: Grupo 1',value:form.serviceGroup||'',onChange:set('serviceGroup')})),
+      e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addPublisher(form)},'Guardar'))
+    );
+
+    if(modal?.type==='assign') {
+      const freeTerrs = modal.territoryId
+        ? [territories.find(t=>t.id===modal.territoryId)].filter(Boolean)
+        : territories.filter(t=>!assignments.find(a=>a.territoryId===t.id&&!a.returnedAt));
+      return e('div',null,
+        e('div',{className:'mo-title'},'Atribuir território'),
+        !modal.territoryId&&e('div',{className:'fg'},e('label',{className:'lbl'},'Território *'),e('select',{value:form.territoryId||'',onChange:set('territoryId')},e('option',{value:''},'Selecionar...'),freeTerrs.map(t=>e('option',{key:t.id,value:t.id},(t.num?t.num+' · ':'')+t.name)))),
+        modal.territoryId&&e('div',{className:'fg'},e('label',{className:'lbl'},'Território'),e('div',{style:{padding:'11px 13px',background:'var(--bg2)',borderRadius:'var(--rsm)',fontSize:15,color:'var(--text2)',border:'.5px solid var(--bd)'}},territories.find(t=>t.id===modal.territoryId)?.name||'')),
+        e('div',{className:'fg'},
+          e('label',{className:'lbl'},'Atribuir a'),
+          e('div',{style:{display:'flex',gap:7,marginBottom:10}},
+            e('button',{className:'tog'+(form.assignTo==='publisher'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'publisher',publisherId:'',serviceGroup:''}))},'👤 Publicador'),
+            e('button',{className:'tog'+(form.assignTo==='group'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'group',publisherId:''}))  },'👥 Grupo')
+          ),
+          form.assignTo==='publisher'&&e('select',{value:form.publisherId||'',onChange:set('publisherId')},e('option',{value:''},'Selecionar publicador...'),publishers.map(p=>e('option',{key:p.id,value:p.id},p.name+(p.serviceGroup?' ('+p.serviceGroup+')':'')))),
+          form.assignTo==='group'&&e('select',{value:form.serviceGroup||'',onChange:set('serviceGroup')},e('option',{value:''},'Selecionar grupo...'),svcGroups.map(g=>e('option',{key:g,value:g},g)))
+        ),
+        settings.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},settings.campaigns.map(c=>e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),onClick:()=>toggleTag(c)},c)))),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Notas'),e('input',{placeholder:'Opcional...',value:form.notes||'',onChange:set('notes')})),
+        e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),
+          e('button',{className:'btn btnp',onClick:()=>{const tid=modal.territoryId||form.territoryId;const ok=form.assignTo==='publisher'?form.publisherId:form.serviceGroup;if(tid&&ok)addAssignment({...form,territoryId:tid});}},'Atribuir'))
+      );
+    }
+
+    if(modal==='add-category') return e('div',null,e('div',{className:'mo-title'},'Nova categoria'),e('div',{className:'fg'},e('input',{placeholder:'Ex: Apartamentos',value:form.name||'',onChange:set('name'),autoFocus:true})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addCategory(form.name)},'Guardar')));
+    if(modal==='add-campaign') return e('div',null,e('div',{className:'mo-title'},'Nova campanha / tag'),e('div',{className:'fg'},e('input',{placeholder:'Ex: Memorial, Estudo Bíblico...',value:form.name||'',onChange:set('name'),autoFocus:true})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:close},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addCampaign(form.name)},'Guardar')));
+    return null;
+  };
+
+  return e('div',{className:'mo-ov',onClick:ev=>{if(ev.target.className==='mo-ov')close();}},
+    e('div',{className:'mo'},e('div',{className:'mo-handle'}),body())
+  );
+}
+
+// ===== MOUNT =====
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+
+// ===== SERVICE WORKER =====
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
