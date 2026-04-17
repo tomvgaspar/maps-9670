@@ -171,7 +171,8 @@ function Root(){
 
 function App({user}){
   const [T,setT]=useState([]),[A,setA]=useState([]),[AL,setAL]=useState([]),[P,setP]=useState([]),[AS,setAS]=useState([]);
-  const [cfg,setCfg]=useState({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});
+  const [cfg,setCfg]=useState({categories:[],campaigns:[]});
+  const cfgRef=useRef({categories:[],campaigns:[]});
   const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null);
   const ld=useRef(new Set());
   useEffect(()=>{
@@ -182,7 +183,15 @@ function App({user}){
       db.collection('addressLog').orderBy('timestamp').onSnapshot(s=>{setAL(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),timestamp:tsMs(d.data().timestamp)||Date.now()})));chk('al');},e=>{console.warn('addressLog',e);chk('al');}),
       db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('p');},e=>{console.warn('publishers',e);chk('p');}),
       db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk('as');},e=>{console.warn('assignments',e);chk('as');}),
-      db.collection('config').doc('settings').onSnapshot(d=>{if(d.exists){setCfg(d.data());}else{db.collection('config').doc('settings').set({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});}chk('cfg');},e=>{console.warn('config',e);chk('cfg');}),
+      db.collection('config').doc('settings').onSnapshot(d=>{
+        const defaultCfg={categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]};
+        const data=d.exists?d.data():defaultCfg;
+        const normalized={categories:Array.isArray(data.categories)?data.categories:defaultCfg.categories,campaigns:Array.isArray(data.campaigns)?data.campaigns:[]};
+        if(!d.exists)db.collection('config').doc('settings').set(normalized);
+        cfgRef.current=normalized;
+        setCfg(normalized);
+        chk('cfg');
+      },e=>{console.warn('config',e);chk('cfg');}),
     ];
     return()=>S.forEach(u=>u());
   },[]);
@@ -197,10 +206,10 @@ function App({user}){
     deleteAddress:async(addr,date)=>{const t=T.find(x=>x.id===addr.territoryId);await db.collection('addresses').doc(addr.id).delete();await db.collection('addressLog').add({action:'delete',territoryId:addr.territoryId,territoryName:t?.name||'',addressText:addr.text,addressType:addr.type,date:fromDate(date||todayStr()),timestamp:TS()});setModal(null);},
     addPublisher:async f=>{await db.collection('publishers').add({name:f.name,serviceGroup:f.serviceGroup||'',createdAt:TS()});setModal(null);},
     delPublisher:async id=>{if(!confirm('Apagar?'))return;await db.collection('publishers').doc(id).delete();},
-    addCategory:async name=>{if(!name||cfg.categories.includes(name))return;await saveCfg({...cfg,categories:[...cfg.categories,name]});setModal(null);},
-    delCategory:async name=>{if(!confirm('Apagar categoria?'))return;await saveCfg({...cfg,categories:cfg.categories.filter(c=>c!==name)});},
-    addCampaign:async name=>{if(!name||cfg.campaigns.includes(name))return;await saveCfg({...cfg,campaigns:[...cfg.campaigns,name]});setModal(null);},
-    delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;await saveCfg({...cfg,campaigns:cfg.campaigns.filter(c=>c!==name)});},
+    addCategory:async name=>{const c=cfgRef.current;if(!name||c.categories.includes(name))return;await saveCfg({...c,categories:[...c.categories,name]});setModal(null);},
+    delCategory:async name=>{if(!confirm('Apagar categoria?'))return;const c=cfgRef.current;await saveCfg({...c,categories:c.categories.filter(x=>x!==name)});},
+    addCampaign:async name=>{const c=cfgRef.current;if(!name||c.campaigns.includes(name))return;await saveCfg({...c,campaigns:[...c.campaigns,name]});setModal(null);},
+    delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>x!==name)});},
     addAssignment:async f=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:aT,returnedAt:rT,weeksToComplete:wk,notes:f.notes||''});setModal(null);},
     editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk});setModal(null);},
     returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});}
