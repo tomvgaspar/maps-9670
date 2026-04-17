@@ -175,20 +175,20 @@ function App({user}){
   const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null);
   const ld=useRef(0);
   useEffect(()=>{
-    const chk=()=>{ld.current++;if(ld.current>=5)setLoading(false);};
+    const chk=()=>{ld.current++;if(ld.current>=6)setLoading(false);};
     const S=[
       db.collection('territories').orderBy('createdAt').onSnapshot(s=>{setT(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
       db.collection('addresses').onSnapshot(s=>{setA(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
       db.collection('addressLog').orderBy('timestamp').onSnapshot(s=>{setAL(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),timestamp:tsMs(d.data().timestamp)||Date.now()})));chk();},()=>chk()),
       db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
       db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk();},()=>chk()),
+      db.collection('config').doc('settings').onSnapshot(d=>{if(d.exists()){setCfg(d.data());}else{db.collection('config').doc('settings').set({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});}chk();},()=>chk()),
     ];
-    db.collection('config').doc('settings').onSnapshot(d=>{if(d.exists())setCfg(d.data());});
     return()=>S.forEach(u=>u());
   },[]);
   const curT=useMemo(()=>selTid?T.find(t=>t.id===selTid):null,[T,selTid]);
   const stats=useMemo(()=>calcStats(T,A,P,AS),[T,A,P,AS]);
-  const saveCfg=async s=>{await db.collection('config').doc('settings').set(s);setCfg(s);};
+  const saveCfg=async s=>{try{await db.collection('config').doc('settings').set(s);}catch(err){console.error('Erro ao guardar config:',err);alert('Erro ao guardar. Verifica a ligação.');}};
 
   const ops={
     addTerritory:async f=>{await db.collection('territories').add({num:f.num||'',name:f.name,category:f.category,mapsLink:f.mapsLink||'',createdAt:TS()});setModal(null);},
