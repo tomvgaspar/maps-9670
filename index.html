@@ -222,6 +222,7 @@ function App({user}){
     {k:'territories',l:'Territórios',ic:e('svg',{viewBox:'0 0 24 24'},e('polygon',{points:'3,6 9,3 15,6 21,3 21,18 15,21 9,18 3,21'}),e('line',{x1:'9',y1:'3',x2:'9',y2:'18'}),e('line',{x1:'15',y1:'6',x2:'15',y2:'21'}))},
     {k:'publishers',l:'Publicadores',ic:e('svg',{viewBox:'0 0 24 24'},e('path',{d:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'}),e('circle',{cx:'9',cy:'7',r:'4'}),e('path',{d:'M23 21v-2a4 4 0 0 0-3-3.87'}),e('path',{d:'M16 3.13a4 4 0 0 1 0 7.75'}))},
     {k:'assignments',l:'Atribuições',ic:e('svg',{viewBox:'0 0 24 24'},e('path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}),e('polyline',{points:'14,2 14,8 20,8'}),e('line',{x1:'16',y1:'13',x2:'8',y2:'13'}),e('line',{x1:'16',y1:'17',x2:'8',y2:'17'}))},
+    {k:'reports',l:'Relatórios',ic:e('svg',{viewBox:'0 0 24 24'},e('line',{x1:'18',y1:'20',x2:'18',y2:'10'}),e('line',{x1:'12',y1:'20',x2:'12',y2:'4'}),e('line',{x1:'6',y1:'20',x2:'6',y2:'14'}))},
     {k:'settings',l:'Definições',ic:e('svg',{viewBox:'0 0 24 24'},e('circle',{cx:'12',cy:'12',r:'3'}),e('path',{d:'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'}))}
   ];
 
@@ -234,6 +235,7 @@ function App({user}){
       view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
+      view==='reports'&&e(ReportsView,{T,A,P,AS,cfg}),
       view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign})
     ),
     e('nav',{className:'nav'},navs.map(n=>e('button',{key:n.k,className:'nb'+(view===n.k||view==='terr-detail'&&n.k==='territories'?' act':''),onClick:()=>navTo(n.k)},
@@ -363,6 +365,140 @@ function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit}){
   );
 }
 
+function ReportsView({T,A,P,AS,cfg}){
+  const now=Date.now();
+  const firstDay=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+  const toStr=d=>{const x=new Date(d);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;};
+  const [dateFrom,setDateFrom]=useState(toStr(firstDay));
+  const [dateTo,setDateTo]=useState(todayStr());
+  const [selCats,setSelCats]=useState([]);
+  const [selTags,setSelTags]=useState([]);
+  const [selGroups,setSelGroups]=useState([]);
+  const [showUnworked,setShowUnworked]=useState(true);
+  const [showWorked,setShowWorked]=useState(true);
+  const [showAssigned,setShowAssigned]=useState(true);
+  const [showLate,setShowLate]=useState(true);
+
+  const allGroups=useMemo(()=>[...new Set(P.map(p=>p.serviceGroup||'').concat(AS.map(a=>a.serviceGroup||'')).filter(Boolean))].sort(),[P,AS]);
+  const allTags=useMemo(()=>[...new Set(AS.flatMap(a=>a.tags||[]))].sort(),[AS]);
+
+  const toggleArr=(arr,setArr,v)=>setArr(a=>a.includes(v)?a.filter(x=>x!==v):[...a,v]);
+
+  const fromMs=new Date(dateFrom+'T00:00:00').getTime();
+  const toMs=new Date(dateTo+'T23:59:59').getTime();
+
+  const results=useMemo(()=>{
+    const rows=[];
+    T.forEach(t=>{
+      if(selCats.length>0&&!selCats.includes(t.category))return;
+      const tAS=AS.filter(a=>a.territoryId===t.id);
+      const activeA=tAS.find(a=>!a.returnedAt);
+      const doneInRange=tAS.filter(a=>a.returnedAt&&a.returnedAt>=fromMs&&a.returnedAt<=toMs);
+      const assignedInRange=tAS.filter(a=>a.assignedAt>=fromMs&&a.assignedAt<=toMs);
+      const isWorked=doneInRange.length>0;
+      const isAssigned=!!activeA;
+      const isUnworked=tAS.length===0||(!activeA&&doneInRange.length===0);
+      const isLate=activeA&&activeA.assignedAt<(now-26*7*24*3600000);
+
+      if(selTags.length>0){
+        const tTagged=tAS.some(a=>(a.tags||[]).some(tg=>selTags.includes(tg)));
+        if(!tTagged)return;
+      }
+      if(selGroups.length>0){
+        const tGrouped=tAS.some(a=>{
+          if(a.publisherId){const p=P.find(x=>x.id===a.publisherId);return p&&selGroups.includes(p.serviceGroup||'');}
+          return a.serviceGroup&&selGroups.includes(a.serviceGroup);
+        });
+        if(!tGrouped)return;
+      }
+
+      const show=(showWorked&&isWorked)||(showAssigned&&isAssigned&&!isWorked)||(showUnworked&&isUnworked)||(showLate&&isLate);
+      if(!show)return;
+
+      const lastA=tAS.filter(a=>a.returnedAt).sort((a,b)=>b.returnedAt-a.returnedAt)[0];
+      const pub=activeA?.publisherId?P.find(x=>x.id===activeA.publisherId):null;
+
+      rows.push({t,isWorked,isAssigned,isUnworked,isLate,activeA,lastA,pub,doneInRange,assignedInRange});
+    });
+    return rows.sort((a,b)=>((a.t.num||'')+a.t.name).localeCompare((b.t.num||'')+b.t.name));
+  },[T,AS,P,fromMs,toMs,selCats,selTags,selGroups,showWorked,showAssigned,showUnworked,showLate]);
+
+  const summary={total:results.length,worked:results.filter(r=>r.isWorked).length,assigned:results.filter(r=>r.isAssigned&&!r.isWorked).length,unworked:results.filter(r=>r.isUnworked).length,late:results.filter(r=>r.isLate).length};
+
+  const ChipGroup=({label,items,sel,onToggle,color})=>items.length===0?null:e('div',{style:{marginBottom:10}},
+    e('div',{className:'lbl'},label),
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
+      items.map(v=>e('span',{key:v,className:'chip'+(sel.includes(v)?' sel':''),style:sel.includes(v)&&color?{background:color,borderColor:color,color:'#fff'}:{},onClick:()=>onToggle(v)},v))
+    )
+  );
+
+  const Toggle=({label,val,onToggle,color})=>e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:6,cursor:'pointer'},onClick:onToggle},
+    e('div',{style:{width:36,height:20,borderRadius:10,background:val?color||'var(--acc)':'var(--bg3)',border:'.5px solid var(--bd2)',transition:'background .2s',position:'relative'}},
+      e('div',{style:{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,left:val?18:2,transition:'left .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)'}})
+    ),
+    e('span',{style:{fontSize:14,color:val?'var(--text)':'var(--text2)'}},label)
+  );
+
+  return e('div',null,
+    e('div',{style:{fontWeight:700,fontSize:17,marginBottom:14}},'Relatórios'),
+
+    e('div',{className:'card',style:{marginBottom:10}},
+      e('div',{style:{fontWeight:600,fontSize:14,marginBottom:10}},'Período'),
+      e('div',{className:'g2'},
+        e('div',{className:'fg',style:{marginBottom:0}},e('label',{className:'lbl'},'De'),e('input',{type:'date',value:dateFrom,onChange:ev=>setDateFrom(ev.target.value)})),
+        e('div',{className:'fg',style:{marginBottom:0}},e('label',{className:'lbl'},'Até'),e('input',{type:'date',value:dateTo,onChange:ev=>setDateTo(ev.target.value)}))
+      )
+    ),
+
+    e('div',{className:'card',style:{marginBottom:10}},
+      e('div',{style:{fontWeight:600,fontSize:14,marginBottom:10}},'Filtros'),
+      e(ChipGroup,{label:'Categorias (todas se vazio)',items:cfg.categories,sel:selCats,onToggle:v=>toggleArr(selCats,setSelCats,v)}),
+      e(ChipGroup,{label:'Tags / Campanhas (todas se vazio)',items:allTags,sel:selTags,onToggle:v=>toggleArr(selTags,setSelTags,v),color:'#d97706'}),
+      e(ChipGroup,{label:'Grupos de serviço (todos se vazio)',items:allGroups,sel:selGroups,onToggle:v=>toggleArr(selGroups,setSelGroups,v),color:'#2563eb'}),
+      e('div',{className:'sep'}),
+      e('div',{style:{fontWeight:600,fontSize:13,marginBottom:8,color:'var(--text2)'}},'Mostrar'),
+      e(Toggle,{label:'Trabalhados no período',val:showWorked,onToggle:()=>setShowWorked(v=>!v),color:'var(--green)'}),
+      e(Toggle,{label:'Atribuídos (em mãos)',val:showAssigned,onToggle:()=>setShowAssigned(v=>!v),color:'#2563eb'}),
+      e(Toggle,{label:'Não trabalhados',val:showUnworked,onToggle:()=>setShowUnworked(v=>!v),color:'var(--text2)'}),
+      e(Toggle,{label:'Em atraso (>6 meses)',val:showLate,onToggle:()=>setShowLate(v=>!v),color:'var(--red)'})
+    ),
+
+    e('div',{className:'kpi-grid',style:{marginBottom:12}},
+      [['Total',summary.total,''],['Trabalhados',summary.worked,'kv-g'],['Em mãos',summary.assigned,'kv-b'],['Não trab.',summary.unworked,''],['Em atraso',summary.late,'kv-r']].map(([l,v,c],i)=>
+        e('div',{key:i,className:'kpi-cell'},e('div',{className:'kpi-lbl'},l),e('div',{className:'kpi-val '+(c||'')},v))
+      )
+    ),
+
+    results.length===0?e('div',{className:'empty'},'Nenhum território para os filtros selecionados.'):
+    e('div',null,
+      results.map(({t,isWorked,isAssigned,isUnworked,isLate,activeA,lastA,pub,doneInRange})=>
+        e('div',{key:t.id,className:'card',style:{marginBottom:8}},
+          e('div',{className:'rb'},
+            e('div',{style:{flex:1}},
+              e('div',{style:{fontWeight:600,fontSize:14}},t.num?e('span',{style:{color:'var(--text2)',fontWeight:400,fontSize:12,marginRight:4}},t.num):null,t.name),
+              e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},t.category)
+            ),
+            e('div',{style:{display:'flex',flexWrap:'wrap',gap:4,justifyContent:'flex-end'}},
+              isLate&&e('span',{className:'badge balert'},'⚠ Atraso'),
+              isWorked&&e('span',{className:'badge bC'},'✓ Trabalhado'),
+              isAssigned&&!isWorked&&e('span',{className:'badge bH'},'Em mãos'),
+              isUnworked&&e('span',{style:{fontSize:12,color:'var(--text2)'}},'Não trabalhado')
+            )
+          ),
+          (isAssigned||isWorked)&&e('div',{style:{marginTop:6,fontSize:12,color:'var(--text2)'}},
+            activeA&&e('div',null,'Atribuído a: ',e('strong',null,pub?.name||activeA.serviceGroup||'Grupo'),' desde ',fmt(activeA.assignedAt)),
+            doneInRange.length>0&&e('div',null,'Concluído(s) no período: ',e('strong',null,doneInRange.length)),
+            lastA&&!activeA&&e('div',null,'Último: ',fmt(lastA.returnedAt))
+          ),
+          activeA&&(activeA.tags||[]).length>0&&e('div',{className:'pill-row'},
+            (activeA.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg))
+          )
+        )
+      )
+    )
+  );
+}
+
 function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp}){
   const Block=({items,onAdd,onDel,label,btn,bg})=>e('div',{style:{marginBottom:20}},e('div',{className:'rb',style:{marginBottom:10}},e('span',{style:{fontWeight:700,fontSize:15}},label),e('button',{className:'btn sm',onClick:onAdd},btn)),items.length===0&&e('div',{style:{fontSize:14,color:'var(--text2)'}},'Nenhum ainda.'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:7}},items.map(c=>e('div',{key:c,style:{display:'flex',alignItems:'center',gap:6,background:bg||'var(--bg2)',borderRadius:'var(--rsm)',padding:'7px 12px',border:'.5px solid var(--bd)'}},e('span',{style:{fontSize:14}},c),e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:16},onClick:()=>onDel(c)},'×')))));
   return e('div',null,
@@ -370,11 +506,6 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp}){
     e(Block,{items:cfg.categories,onAdd:onAddCat,onDel:onDelCat,label:'Categorias de território',btn:'+ Categoria'}),
     e('div',{className:'sep'}),
     e(Block,{items:cfg.campaigns,onAdd:onAddCamp,onDel:onDelCamp,label:'Campanhas / Tags',btn:'+ Campanha',bg:'#fffbeb'}),
-    e('div',{className:'sep'}),
-    e('div',{style:{fontSize:13,color:'var(--text2)',lineHeight:1.7}},e('div',{style:{fontWeight:700,fontSize:14,color:'var(--text)',marginBottom:6}},'Segurança do Firestore'),
-      'Vai a ',e('strong',null,'console.firebase.google.com'),' → Firestore → Regras e cola:',
-      e('pre',{style:{background:'var(--bg3)',borderRadius:'var(--rsm)',padding:'10px',fontSize:11,marginTop:8,overflowX:'auto',border:'.5px solid var(--bd)',lineHeight:1.5}},
-"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}"))
   );
 }
 
