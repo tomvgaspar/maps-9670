@@ -173,16 +173,16 @@ function App({user}){
   const [T,setT]=useState([]),[A,setA]=useState([]),[AL,setAL]=useState([]),[P,setP]=useState([]),[AS,setAS]=useState([]);
   const [cfg,setCfg]=useState({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});
   const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null);
-  const ld=useRef(0);
+  const ld=useRef(new Set());
   useEffect(()=>{
-    const chk=()=>{ld.current++;if(ld.current>=6)setLoading(false);};
+    const chk=k=>{ld.current.add(k);if(ld.current.size>=6)setLoading(false);};
     const S=[
-      db.collection('territories').orderBy('createdAt').onSnapshot(s=>{setT(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
-      db.collection('addresses').onSnapshot(s=>{setA(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
-      db.collection('addressLog').orderBy('timestamp').onSnapshot(s=>{setAL(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),timestamp:tsMs(d.data().timestamp)||Date.now()})));chk();},()=>chk()),
-      db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk();},()=>chk()),
-      db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk();},()=>chk()),
-      db.collection('config').doc('settings').onSnapshot(d=>{if(d.exists()){setCfg(d.data());}else{db.collection('config').doc('settings').set({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});}chk();},()=>chk()),
+      db.collection('territories').orderBy('createdAt').onSnapshot(s=>{setT(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('t');},e=>{console.warn('territories',e);chk('t');}),
+      db.collection('addresses').onSnapshot(s=>{setA(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('a');},e=>{console.warn('addresses',e);chk('a');}),
+      db.collection('addressLog').orderBy('timestamp').onSnapshot(s=>{setAL(s.docs.map(d=>({id:d.id,...d.data(),date:tsMs(d.data().date),timestamp:tsMs(d.data().timestamp)||Date.now()})));chk('al');},e=>{console.warn('addressLog',e);chk('al');}),
+      db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('p');},e=>{console.warn('publishers',e);chk('p');}),
+      db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk('as');},e=>{console.warn('assignments',e);chk('as');}),
+      db.collection('config').doc('settings').onSnapshot(d=>{if(d.exists){setCfg(d.data());}else{db.collection('config').doc('settings').set({categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]});}chk('cfg');},e=>{console.warn('config',e);chk('cfg');}),
     ];
     return()=>S.forEach(u=>u());
   },[]);
