@@ -248,7 +248,7 @@ function App({user}){
       view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
       view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog,onDeleteAssignment:ops.deleteAssignment}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
-      view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
+      view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDelete:ops.deleteAssignment}),
       view==='reports'&&e(ReportsView,{T,A,AL,P,AS,cfg}),
       view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign})
     ),
@@ -515,7 +515,7 @@ function PublishersView({T,P,AS,onAdd,onDelete}){
   );
 }
 
-function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit}){
+function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit,onDelete}){
   const [active,setActive]=useState(true),[fG,setFG]=useState(''),[fT,setFT]=useState('');
   const now=Date.now();
   const groups=[...new Set(P.map(p=>p.serviceGroup||'Sem grupo').concat(AS.map(a=>a.serviceGroup||'').filter(Boolean)))].filter(Boolean).sort();
@@ -532,7 +532,7 @@ function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit}){
     list.map(a=>{const t=T.find(x=>x.id===a.territoryId),p=a.publisherId?P.find(x=>x.id===a.publisherId):null;const isAl=!a.returnedAt&&a.assignedAt<(now-weeksMs(26)),wk=a.returnedAt?a.weeksToComplete:msToWeeks(now-a.assignedAt);
       return e('div',{key:a.id,className:'card'},
         e('div',{className:'rb'},e('div',{style:{flex:1}},e('div',{style:{fontWeight:600,cursor:'pointer'},onClick:()=>t&&onOpen(t)},t?(t.num?t.num+' · ':'')+t.name:'—'),e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:2}},p?.name||a.serviceGroup||'Grupo',' · ',fmt(a.assignedAt),a.returnedAt?' → '+fmt(a.returnedAt):'')),
-          e('div',{className:'row',style:{gap:5}},isAl&&e('span',{className:'badge balert'},'⚠ '+wk+'sem'),!isAl&&wk&&e('span',{style:{fontSize:12,color:'var(--text2)'}},wk+'sem'),e('button',{className:'btn sm',style:{fontSize:12},onClick:()=>onEdit(a)},'Editar'),!a.returnedAt&&e('button',{className:'btn sm',onClick:()=>onReturn(a.id)},'Devolver'))),
+          e('div',{className:'row',style:{gap:5}},isAl&&e('span',{className:'badge balert'},'⚠ '+wk+'sem'),!isAl&&wk&&e('span',{style:{fontSize:12,color:'var(--text2)'}},wk+'sem'),e('button',{className:'btn sm',style:{fontSize:12},onClick:()=>onEdit(a)},'Editar'),!a.returnedAt&&e('button',{className:'btn sm',onClick:()=>onReturn(a.id)},'Devolver'),e('button',{className:'btn btnd sm',style:{minHeight:30,padding:'4px 8px'},title:'Apagar registo',onClick:()=>onDelete(a.id)},'×'))),
         (a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg))),
         a.notes&&e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:5}},a.notes)
       );
