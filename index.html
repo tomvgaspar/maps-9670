@@ -224,7 +224,7 @@ function App({user}){
     addCampaign:async name=>{const c=cfgRef.current;if(!name||c.campaigns.includes(name))return;await saveCfg({...c,campaigns:[...c.campaigns,name]});setModal(null);},
     delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>x!==name)});},
     addAssignment:async f=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:aT,returnedAt:rT,weeksToComplete:wk,notes:f.notes||''});setModal(null);},
-    editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk});setModal(null);},
+    editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk,tags:f.tags||[]});setModal(null);},
     returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});},
     deleteAssignment:async id=>{if(!confirm('Apagar este registo de atribuição? Esta ação não pode ser desfeita.'))return;await db.collection('assignments').doc(id).delete();}
   };
@@ -719,6 +719,26 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp}){
   );
 }
 
+function PublisherSearch({publishers,value,onChange}){
+  const [search,setSearch]=useState('');
+  const filtered=publishers.filter(p=>!search||(p.name+' '+(p.serviceGroup||'')).toLowerCase().includes(search.toLowerCase()));
+  const sel=publishers.find(p=>p.id===value);
+  return e('div',null,
+    e('input',{placeholder:'Pesquisar nome ou grupo...',value:search,onChange:ev=>setSearch(ev.target.value),style:{marginBottom:6}}),
+    e('div',{style:{maxHeight:180,overflowY:'auto',border:'.5px solid var(--bd2)',borderRadius:'var(--rsm)',background:'var(--bg)'}},
+      filtered.length===0&&e('div',{style:{padding:'10px 13px',fontSize:13,color:'var(--text2)'}},'Nenhum resultado.'),
+      filtered.map(p=>e('div',{key:p.id,onClick:()=>{onChange(p.id);setSearch('');},style:{padding:'10px 13px',cursor:'pointer',fontSize:14,background:value===p.id?'var(--bg3)':'transparent',borderBottom:'.5px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+        e('div',null,
+          e('div',{style:{fontWeight:value===p.id?600:400}},p.name),
+          p.serviceGroup&&e('div',{style:{fontSize:12,color:'var(--text2)'}},p.serviceGroup)
+        ),
+        value===p.id&&e('span',{style:{color:'var(--green)',fontWeight:700}},'✓')
+      ))
+    ),
+    sel&&e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:5}},'Selecionado: ',e('strong',null,sel.name+(sel.serviceGroup?' ('+sel.serviceGroup+')':'')))
+  );
+}
+
 function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAddress,editAddress,addPublisher,addCategory,addCampaign,addAssignment,editAssignment}){
   const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||''};} if(modal?.type==='edit-address'){const a=modal.addr;return{text:a.text,type:a.type,notes:a.notes||'',doNotVisit:a.doNotVisit||false,date:msToDate(a.date||a.createdAt)};} return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher',doNotVisit:false};};
   const [form,setForm]=useState(init);
@@ -760,7 +780,7 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAdd
       return e('div',null,e('div',{className:'mo-title'},'Atribuir território'),
         !modal.territoryId&&e('div',{className:'fg'},e('label',{className:'lbl'},'Território *'),e('select',{value:form.territoryId||'',onChange:set('territoryId')},e('option',{value:''},'Selecionar...'),...freeT.map(t=>e('option',{key:t.id,value:t.id},(t.num?t.num+' · ':'')+t.name)))),
         modal.territoryId&&e('div',{className:'fg'},e('label',{className:'lbl'},'Território'),e('div',{style:{padding:'11px 13px',background:'var(--bg2)',borderRadius:'var(--rsm)',fontSize:15,color:'var(--text2)',border:'.5px solid var(--bd)'}},T.find(t=>t.id===modal.territoryId)?.name||'')),
-        e('div',{className:'fg'},e('label',{className:'lbl'},'Atribuir a'),e('div',{style:{display:'flex',gap:7,marginBottom:10}},e('button',{className:'tog'+(form.assignTo==='publisher'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'publisher',publisherId:'',serviceGroup:''}))},'👤 Publicador'),e('button',{className:'tog'+(form.assignTo==='group'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'group',publisherId:''}))},'👥 Grupo')),form.assignTo==='publisher'&&e('select',{value:form.publisherId||'',onChange:set('publisherId')},e('option',{value:''},'Selecionar...'),...P.map(p=>e('option',{key:p.id,value:p.id},p.name+(p.serviceGroup?' ('+p.serviceGroup+')':'')))),form.assignTo==='group'&&e('select',{value:form.serviceGroup||'',onChange:set('serviceGroup')},e('option',{value:''},'Selecionar grupo...'),...svcGroups.map(g=>e('option',{key:g,value:g},g)))),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Atribuir a'),e('div',{style:{display:'flex',gap:7,marginBottom:10}},e('button',{className:'tog'+(form.assignTo==='publisher'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'publisher',publisherId:'',serviceGroup:''}))},'👤 Publicador'),e('button',{className:'tog'+(form.assignTo==='group'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'group',publisherId:''}))},'👥 Grupo')),form.assignTo==='publisher'&&e(PublisherSearch,{publishers:P,value:form.publisherId||'',onChange:id=>setForm(f=>({...f,publisherId:id}))}),form.assignTo==='group'&&e('select',{value:form.serviceGroup||'',onChange:set('serviceGroup')},e('option',{value:''},'Selecionar grupo...'),...svcGroups.map(g=>e('option',{key:g,value:g},g)))),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||todayStr(),onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Opcional — preenche se já foi devolvido')),
         cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),onClick:()=>toggleTag(c)},c)))),
@@ -775,6 +795,7 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAdd
         e('div',{style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px 13px',marginBottom:14,border:'.5px solid var(--bd)'}},e('div',{style:{fontWeight:600,fontSize:14}},t?(t.num?t.num+' · ':'')+t.name:'Território'),e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:2}},p?.name||a.serviceGroup||'Grupo')),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||'',onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Deixa vazio se ainda não foi devolvido')),
+        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),onClick:()=>toggleTag(c)},c)))),
         e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.assignedDate&&editAssignment(a.id,form)},'Guardar'))
       );
     }
