@@ -104,6 +104,16 @@ tr:last-child td{border-bottom:none}
 .spinner{width:28px;height:28px;border:2.5px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hint{font-size:12px;color:var(--text2);margin-top:4px}
+.dnv-box{background:var(--redbg);border:.5px solid var(--redbdr);border-radius:var(--r);padding:10px 14px;margin-bottom:10px}
+.dnv-title{font-size:12px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.chk-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 0}
+.chk-box{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;background:var(--bg);flex-shrink:0}
+.chk-box.on{background:var(--red);border-color:var(--red)}
+.addr-notes{font-size:12px;color:var(--text2);margin-top:3px;font-style:italic}
+.copy-btn{background:#f0fdf4;border:.5px solid #86efac;color:#15803d;border-radius:var(--rsm);padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;min-height:36px}
+.copy-btn:active{opacity:.7}
+.log-del-btn{cursor:pointer;color:var(--text2);font-size:16px;padding:2px 6px;border-radius:4px;line-height:1}
+.log-del-btn:hover{color:var(--red);background:var(--redbg)}
 .login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .login-box{width:100%;max-width:360px}
 .login-logo{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:6px}
@@ -202,8 +212,10 @@ function App({user}){
   const ops={
     addTerritory:async f=>{await db.collection('territories').add({num:f.num||'',name:f.name,category:f.category,mapsLink:f.mapsLink||'',createdAt:TS()});setModal(null);},
     delTerritory:async id=>{if(!confirm('Apagar território?'))return;const b=db.batch();A.filter(a=>a.territoryId===id).forEach(a=>b.delete(db.collection('addresses').doc(a.id)));AS.filter(a=>a.territoryId===id).forEach(a=>b.delete(db.collection('assignments').doc(a.id)));b.delete(db.collection('territories').doc(id));await b.commit();setView('territories');setSelTid(null);},
-    addAddress:async(tid,f)=>{const t=T.find(x=>x.id===tid);const dt=fromDate(f.date||todayStr());await db.collection('addresses').add({territoryId:tid,text:f.text,type:f.type,date:dt,createdAt:TS()});await db.collection('addressLog').add({action:'add',territoryId:tid,territoryName:t?.name||'',addressText:f.text,addressType:f.type,date:dt,timestamp:TS()});setModal(null);},
-    deleteAddress:async(addr,date)=>{const t=T.find(x=>x.id===addr.territoryId);await db.collection('addresses').doc(addr.id).delete();await db.collection('addressLog').add({action:'delete',territoryId:addr.territoryId,territoryName:t?.name||'',addressText:addr.text,addressType:addr.type,date:fromDate(date||todayStr()),timestamp:TS()});setModal(null);},
+    addAddress:async(tid,f)=>{const t=T.find(x=>x.id===tid);const dt=fromDate(f.date||todayStr());await db.collection('addresses').add({territoryId:tid,text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,date:dt,createdAt:TS()});await db.collection('addressLog').add({action:'add',territoryId:tid,territoryName:t?.name||'',addressText:f.text,addressType:f.type,date:dt,timestamp:TS()});setModal(null);},
+    deleteAddress:async(addr,date,reason)=>{const t=T.find(x=>x.id===addr.territoryId);await db.collection('addresses').doc(addr.id).delete();await db.collection('addressLog').add({action:'delete',territoryId:addr.territoryId,territoryName:t?.name||'',addressText:addr.text,addressType:addr.type,reason:reason||'',date:fromDate(date||todayStr()),timestamp:TS()});setModal(null);},
+    editAddress:async(id,f)=>{const dt=fromDate(f.date||todayStr());await db.collection('addresses').doc(id).update({text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,date:dt});setModal(null);},
+    deleteLog:async id=>{if(!confirm('Apagar este registo do histórico?'))return;await db.collection('addressLog').doc(id).delete();},
     addPublisher:async f=>{await db.collection('publishers').add({name:f.name,serviceGroup:f.serviceGroup||'',createdAt:TS()});setModal(null);},
     delPublisher:async id=>{if(!confirm('Apagar?'))return;await db.collection('publishers').doc(id).delete();},
     addCategory:async name=>{const c=cfgRef.current;if(!name||c.categories.includes(name))return;await saveCfg({...c,categories:[...c.categories,name]});setModal(null);},
@@ -232,17 +244,17 @@ function App({user}){
     e('div',{className:'content'},
       view==='dashboard'&&e(Dashboard,{T,A,P,AS,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
       view==='territories'&&e(TerritoriesView,{T,A,AS,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
-      view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
+      view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
-      view==='reports'&&e(ReportsView,{T,A,P,AS,cfg}),
+      view==='reports'&&e(ReportsView,{T,A,AL,P,AS,cfg}),
       view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign})
     ),
     e('nav',{className:'nav'},navs.map(n=>e('button',{key:n.k,className:'nb'+(view===n.k||view==='terr-detail'&&n.k==='territories'?' act':''),onClick:()=>navTo(n.k)},
       n.k==='assignments'&&stats.alerts.length>0&&e('span',{className:'nb-badge'},stats.alerts.length),
       n.ic,e('span',null,n.l)
     ))),
-    modal&&e(ModalRoot,{modal,T,P,AS,cfg,onClose:()=>setModal(null),...ops})
+    modal&&e(ModalRoot,{modal,T,P,AS,cfg,onClose:()=>setModal(null),...ops,A})
   );
 }
 
@@ -296,16 +308,58 @@ function TerritoriesView({T,A,AS,cfg,onOpen,onAdd}){
   );
 }
 
-function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onDelete,onAssign,onReturn,onEdit}){
-  const [showLog,setShowLog]=useState(false);
+function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onEditAddr,onDelete,onAssign,onReturn,onEdit,onDeleteLog}){
+  const [showLog,setShowLog]=useState(false),[copied,setCopied]=useState(false);
   const addrs=A.filter(a=>a.territoryId===territory.id),logs=AL.filter(l=>l.territoryId===territory.id);
   const aA=AS.find(a=>a.territoryId===territory.id&&!a.returnedAt),pub=aA?.publisherId?P.find(p=>p.id===aA.publisherId):null;
   const isAl=aA&&aA.assignedAt<(Date.now()-weeksMs(26)),pastA=AS.filter(a=>a.territoryId===territory.id&&a.returnedAt);
-  const stats={H:addrs.filter(a=>a.type==='H').length,M:addrs.filter(a=>a.type==='M').length,C:addrs.filter(a=>a.type==='C').length};
+  const normal=addrs.filter(a=>!a.doNotVisit).sort((a,b)=>a.text.localeCompare(b.text));
+  const dnv=addrs.filter(a=>a.doNotVisit).sort((a,b)=>a.text.localeCompare(b.text));
+  const stats={H:normal.filter(a=>a.type==='H').length,M:normal.filter(a=>a.type==='M').length,C:normal.filter(a=>a.type==='C').length};
+
+  const copyNotes=()=>{
+    const lines=[];
+    lines.push('📋 '+territory.name+(territory.num?' ('+territory.num+')':''));
+    lines.push('');
+    if(normal.length>0){
+      lines.push('── MORADAS ──');
+      normal.forEach(a=>{
+        let l=a.text+' ['+TL[a.type]+']';
+        if(a.notes)l+=' — '+a.notes;
+        l+='  •  '+fmt(a.date||a.createdAt);
+        lines.push(l);
+      });
+    }
+    if(dnv.length>0){
+      lines.push('');
+      lines.push('🚫 NÃO VISITAR');
+      dnv.forEach(a=>{
+        let l=a.text;
+        if(a.notes)l+=' — '+a.notes;
+        lines.push(l);
+      });
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}).catch(()=>alert('Não foi possível copiar.'));
+  };
+
+  const AddrRow=({a,isDnv})=>e('div',{key:a.id,className:'addr-row'},
+    e('div',{style:{flex:1}},
+      e('div',{style:{fontSize:14,fontWeight:500}},a.text),
+      a.notes&&e('div',{className:'addr-notes'},a.notes),
+      e('div',{style:{fontSize:11,color:'var(--text2)',marginTop:2}},fmt(a.date||a.createdAt))
+    ),
+    e('span',{className:'badge b'+a.type,style:{marginRight:6}},TL[a.type]),
+    e('button',{className:'btn sm',style:{fontSize:12,minHeight:30,padding:'4px 8px'},onClick:()=>onEditAddr(a)},'✏'),
+    e('button',{className:'btn btnd sm',style:{minHeight:30,padding:'4px 8px'},onClick:()=>onDelAddr(a)},'×')
+  );
+
   return e('div',null,
     e('div',{className:'back',onClick:onBack},'← Voltar'),
     e('div',{className:'card'},
-      e('div',{className:'rb',style:{marginBottom:9}},e('div',null,e('div',{style:{fontWeight:700,fontSize:17}},territory.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},territory.num+' ·'),territory.name),e('span',{className:'bcat badge',style:{marginTop:4}},territory.category)),e('button',{className:'btn btnd sm',onClick:()=>onDelete(territory.id)},'Apagar')),
+      e('div',{className:'rb',style:{marginBottom:9}},
+        e('div',null,e('div',{style:{fontWeight:700,fontSize:17}},territory.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},territory.num+' ·'),territory.name),e('span',{className:'bcat badge',style:{marginTop:4}},territory.category)),
+        e('button',{className:'btn btnd sm',onClick:()=>onDelete(territory.id)},'Apagar')
+      ),
       territory.mapsLink&&e('a',{href:territory.mapsLink,target:'_blank',rel:'noopener noreferrer',className:'mlink'},'Abrir no Google Maps ↗'),
       e('div',{className:'sep'}),
       aA?e('div',{className:'asgn-box',style:{borderColor:isAl?'var(--redbdr)':'var(--bd)',background:isAl?'var(--redbg)':'var(--bg2)'}},
@@ -315,12 +369,35 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onD
       pastA.length>0&&e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:6}},pastA.length+' atribuições anteriores'),
       e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:12}},[['H','Homens'],['M','Mulheres'],['C','Casais']].map(([k,l])=>e('div',{key:k,style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px',textAlign:'center',border:'.5px solid var(--bd)'}},e('div',{style:{fontSize:20,fontWeight:700}},stats[k]),e('div',{style:{fontSize:11,color:'var(--text2)'}},l))))
     ),
-    e('div',{className:'rb',style:{margin:'14px 0 10px'}},e('span',{style:{fontWeight:700,fontSize:15}},'Moradas ('+addrs.length+')'),e('button',{className:'btn btnp sm',onClick:onAddAddr},'+  Morada')),
-    addrs.length===0&&e('div',{className:'empty'},'Sem moradas.'),
-    addrs.map(a=>e('div',{key:a.id,className:'addr-row'},e('div',{style:{flex:1}},e('div',{style:{fontSize:14}},a.text),e('div',{style:{fontSize:12,color:'var(--text2)'}},fmt(a.date||a.createdAt))),e('span',{className:'badge b'+a.type,style:{marginRight:8}},TL[a.type]),e('button',{className:'btn btnd sm',onClick:()=>onDelAddr(a)},'×'))),
+    e('div',{className:'rb',style:{margin:'14px 0 10px'}},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Moradas ('+normal.length+(dnv.length>0?' + '+dnv.length+' NV':'')+')'),
+      e('div',{className:'row',style:{gap:6}},
+        addrs.length>0&&e('button',{className:'copy-btn',onClick:copyNotes},copied?'✓ Copiado!':'📋 Copiar notas'),
+        e('button',{className:'btn btnp sm',onClick:onAddAddr},'+  Morada')
+      )
+    ),
+    normal.length===0&&dnv.length===0&&e('div',{className:'empty'},'Sem moradas.'),
+    normal.map(a=>e(AddrRow,{key:a.id,a})),
+    dnv.length>0&&e('div',{className:'dnv-box',style:{marginTop:12}},
+      e('div',{className:'dnv-title'},'🚫 Não visitar ('+dnv.length+')'),
+      dnv.map(a=>e(AddrRow,{key:a.id,a,isDnv:true}))
+    ),
     e('div',{style:{marginTop:14}},
-      e('div',{className:'rb',style:{cursor:'pointer'},onClick:()=>setShowLog(!showLog)},e('span',{style:{fontWeight:600,fontSize:14}},'Histórico ('+logs.length+')'),e('span',{style:{color:'var(--text2)',fontSize:13}},showLog?'▲':'▼')),
-      showLog&&[...logs].reverse().map(l=>e('div',{key:l.id,className:'logrow'},e('span',{className:l.action==='add'?'ladd':'ldel'},l.action==='add'?'+ Adicionado':'− Removido'),' · ',l.addressText,' · ',TL[l.addressType],' · ',fmt(l.date||l.timestamp)))
+      e('div',{className:'rb',style:{cursor:'pointer'},onClick:()=>setShowLog(!showLog)},
+        e('span',{style:{fontWeight:600,fontSize:14}},'Histórico ('+logs.length+')'),
+        e('span',{style:{color:'var(--text2)',fontSize:13}},showLog?'▲':'▼')
+      ),
+      showLog&&e('div',{style:{marginTop:8}},
+        logs.length===0&&e('div',{style:{fontSize:13,color:'var(--text2)',padding:'8px 0'}},'Sem registos.'),
+        [...logs].reverse().map(l=>e('div',{key:l.id,className:'logrow',style:{display:'flex',alignItems:'flex-start',gap:8}},
+          e('div',{style:{flex:1}},
+            e('span',{className:l.action==='add'?'ladd':'ldel'},l.action==='add'?'+ Adicionado':'− Removido'),
+            ' · ',l.addressText,' · ',TL[l.addressType],' · ',fmt(l.date||l.timestamp),
+            l.reason&&e('div',{style:{fontSize:11,color:'var(--red)',marginTop:2}},'Motivo: '+l.reason)
+          ),
+          e('span',{className:'log-del-btn',title:'Apagar registo',onClick:()=>onDeleteLog(l.id)},'×')
+        ))
+      )
     )
   );
 }
@@ -365,7 +442,7 @@ function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit}){
   );
 }
 
-function ReportsView({T,A,P,AS,cfg}){
+function ReportsView({T,A,AL,P,AS,cfg}){
   const now=Date.now();
   const firstDay=new Date(new Date().getFullYear(),new Date().getMonth(),1);
   const toStr=d=>{const x=new Date(d);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;};
@@ -495,6 +572,41 @@ function ReportsView({T,A,P,AS,cfg}){
           )
         )
       )
+    ),
+
+    e(AddressLogSection,{A,AL,fromMs,toMs})
+  );
+}
+
+function AddressLogSection({A,AL,fromMs,toMs}){
+  const [show,setShow]=useState(false);
+  const inRange=AL.filter(l=>{const t=l.timestamp||0;return t>=fromMs&&t<=toMs;});
+  const added=inRange.filter(l=>l.action==='add').sort((a,b)=>b.timestamp-a.timestamp);
+  const removed=inRange.filter(l=>l.action==='delete').sort((a,b)=>b.timestamp-a.timestamp);
+  if(inRange.length===0)return null;
+  return e('div',{style:{marginTop:16}},
+    e('div',{className:'rb',style:{cursor:'pointer',marginBottom:show?10:0},onClick:()=>setShow(v=>!v)},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Movimentos de moradas ('+inRange.length+')'),
+      e('div',{className:'row',style:{gap:6}},
+        e('span',{className:'badge bfree'},'+'+added.length),
+        e('span',{className:'badge balert'},'-'+removed.length),
+        e('span',{style:{color:'var(--text2)',fontSize:13}},show?'▲':'▼')
+      )
+    ),
+    show&&e('div',null,
+      added.length>0&&e('div',{style:{marginBottom:12}},
+        e('div',{className:'ch',style:{color:'var(--green)'}},'Adicionadas ('+added.length+')'),
+        added.map(l=>e('div',{key:l.id,className:'logrow'},
+          e('span',{className:'ladd'},l.territoryName||'—'),' · ',l.addressText,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp)
+        ))
+      ),
+      removed.length>0&&e('div',null,
+        e('div',{className:'ch',style:{color:'var(--red)'}},'Removidas ('+removed.length+')'),
+        removed.map(l=>e('div',{key:l.id,className:'logrow'},
+          e('span',{className:'ldel'},l.territoryName||'—'),' · ',l.addressText,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp),
+          l.reason&&e('div',{style:{fontSize:11,color:'var(--red)',marginTop:2}},'Motivo: '+l.reason)
+        ))
+      )
     )
   );
 }
@@ -509,8 +621,8 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp}){
   );
 }
 
-function ModalRoot({modal,T,P,AS,cfg,onClose,addTerritory,addAddress,deleteAddress,addPublisher,addCategory,addCampaign,addAssignment,editAssignment}){
-  const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||''};}return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher'};};
+function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAddress,editAddress,addPublisher,addCategory,addCampaign,addAssignment,editAssignment}){
+  const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||''};} if(modal?.type==='edit-address'){const a=modal.addr;return{text:a.text,type:a.type,notes:a.notes||'',doNotVisit:a.doNotVisit||false,date:msToDate(a.date||a.createdAt)};} return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher',doNotVisit:false};};
   const [form,setForm]=useState(init);
   const set=k=>ev=>setForm(f=>({...f,[k]:ev.target.value}));
   const toggleTag=tag=>setForm(f=>({...f,tags:f.tags.includes(tag)?f.tags.filter(x=>x!==tag):[...f.tags,tag]}));
@@ -519,9 +631,29 @@ function ModalRoot({modal,T,P,AS,cfg,onClose,addTerritory,addAddress,deleteAddre
   const body=()=>{
     if(modal==='add-territory')return e('div',null,e('div',{className:'mo-title'},'Novo território'),e('div',{className:'g2'},e('div',{className:'fg'},e('label',{className:'lbl'},'Número'),e('input',{placeholder:'001',value:form.num||'',onChange:set('num')})),e('div',{className:'fg'},e('label',{className:'lbl'},'Nome *'),e('input',{placeholder:'Nome do território',value:form.name||'',onChange:set('name'),autoFocus:true}))),e('div',{className:'fg'},e('label',{className:'lbl'},'Categoria *'),e('select',{value:form.category||'',onChange:set('category')},e('option',{value:''},'Selecionar...'),...cfg.categories.map(c=>e('option',{key:c,value:c},c)))),e('div',{className:'fg'},e('label',{className:'lbl'},'Link Google Maps'),e('input',{placeholder:'https://...',value:form.mapsLink||'',onChange:set('mapsLink')})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&form.category&&addTerritory(form)},'Guardar')));
 
-    if(modal?.type==='add-address')return e('div',null,e('div',{className:'mo-title'},'Nova morada'),e('div',{className:'fg'},e('label',{className:'lbl'},'Morada *'),e('input',{placeholder:'Ex: Rua das Flores, 12',value:form.text||'',onChange:set('text'),autoFocus:true})),e('div',{className:'fg'},e('label',{className:'lbl'},'Tipo *'),e('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginTop:4}},...['H','M','C'].map(t=>e('span',{key:t,className:'chip'+(form.type===t?' sel':''),onClick:()=>setForm(f=>({...f,type:t}))},TL[t])))),e('div',{className:'fg'},e('label',{className:'lbl'},'Data'),e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),e('div',{className:'hint'},'Por defeito hoje — altera se estás a introduzir moradas antigas')),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.text&&form.type&&addAddress(modal.territoryId,form)},'Guardar')));
+    if(modal?.type==='add-address'||modal?.type==='edit-address'){
+      const isEdit=modal.type==='edit-address';
+      const addr=isEdit?modal.addr:null;
+      return e('div',null,
+        e('div',{className:'mo-title'},isEdit?'Editar morada':'Nova morada'),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Morada *'),e('input',{placeholder:'Ex: Rua das Flores, 12',value:form.text||'',onChange:set('text'),autoFocus:!isEdit})),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Tipo *'),e('div',{style:{display:'flex',gap:7,flexWrap:'wrap',marginTop:4}},...['H','M','C'].map(t=>e('span',{key:t,className:'chip'+(form.type===t?' sel':''),onClick:()=>setForm(f=>({...f,type:t}))},TL[t])))),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Notas'),e('input',{placeholder:'Ex: 2º andar, interfone 12...',value:form.notes||'',onChange:set('notes')})),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Data'),e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),!isEdit&&e('div',{className:'hint'},'Por defeito hoje — altera se estás a introduzir moradas antigas')),
+        e('div',{className:'chk-row',onClick:()=>setForm(f=>({...f,doNotVisit:!f.doNotVisit}))},
+          e('div',{className:'chk-box'+(form.doNotVisit?' on':'')},form.doNotVisit&&e('span',{style:{color:'#fff',fontSize:13,fontWeight:700}},'✕')),
+          e('span',{style:{fontSize:14,color:form.doNotVisit?'var(--red)':'var(--text)'}},'Não visitar')
+        ),
+        e('div',{className:'g2',style:{marginTop:14}},
+          e('button',{className:'btn',onClick:onClose},'Cancelar'),
+          isEdit
+            ? e('button',{className:'btn btnp',onClick:()=>form.text&&form.type&&editAddress(addr.id,form)},'Guardar')
+            : e('button',{className:'btn btnp',onClick:()=>form.text&&form.type&&addAddress(modal.territoryId,form)},'Guardar')
+        )
+      );
+    }
 
-    if(modal?.type==='delete-address'){const addr=modal.addr;return e('div',null,e('div',{className:'mo-title'},'Remover morada'),e('div',{style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px 13px',marginBottom:14,border:'.5px solid var(--bd)'}},e('div',{style:{fontWeight:600}},addr.text),e('span',{className:'badge b'+addr.type,style:{marginTop:4}},TL[addr.type])),e('div',{className:'fg'},e('label',{className:'lbl'},'Data de remoção'),e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),e('div',{className:'hint'},'Por defeito hoje — altera se necessário')),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnd',onClick:()=>deleteAddress(addr,form.date||todayStr())},'Confirmar remoção')));}
+    if(modal?.type==='delete-address'){const addr=modal.addr;return e('div',null,e('div',{className:'mo-title'},'Remover morada'),e('div',{style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px 13px',marginBottom:14,border:'.5px solid var(--bd)'}},e('div',{style:{fontWeight:600}},addr.text),e('span',{className:'badge b'+addr.type,style:{marginTop:4}},TL[addr.type])),e('div',{className:'fg'},e('label',{className:'lbl'},'Motivo da remoção'),e('input',{placeholder:'Ex: Faleceu, mudou-se...',value:form.reason||'',onChange:set('reason'),autoFocus:true})),e('div',{className:'fg'},e('label',{className:'lbl'},'Data de remoção'),e('input',{type:'date',value:form.date||todayStr(),onChange:set('date')}),e('div',{className:'hint'},'Por defeito hoje — altera se necessário')),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnd',onClick:()=>deleteAddress(addr,form.date||todayStr(),form.reason||'')},'Confirmar remoção')));}
 
     if(modal==='add-publisher')return e('div',null,e('div',{className:'mo-title'},'Novo publicador'),e('div',{className:'fg'},e('label',{className:'lbl'},'Nome *'),e('input',{placeholder:'Nome completo',value:form.name||'',onChange:set('name'),autoFocus:true})),e('div',{className:'fg'},e('label',{className:'lbl'},'Grupo de serviço'),e('input',{placeholder:'Ex: Grupo 1',value:form.serviceGroup||'',onChange:set('serviceGroup')})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addPublisher(form)},'Guardar')));
 
