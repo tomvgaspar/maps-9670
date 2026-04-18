@@ -306,7 +306,7 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
     if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));
     if(fCat)l=l.filter(t=>t.category===fCat);
     if(fStatus==='free')l=l.filter(t=>!aMap[t.id]);
-    if(fStatus==='assigned')l=l.filter(t=>!!aMap[t.id]&&statusOf(aMap[t.id])==='assigned');
+    if(fStatus==='assigned')l=l.filter(t=>!!aMap[t.id]);
     if(fStatus==='soon')l=l.filter(t=>statusOf(aMap[t.id])==='soon');
     if(fStatus==='late')l=l.filter(t=>statusOf(aMap[t.id])==='late');
     return l;
@@ -314,7 +314,7 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
 
   const grouped=useMemo(()=>{const g={};filtered.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});return g;},[filtered]);
 
-  const counts={free:T.filter(t=>!aMap[t.id]).length,assigned:T.filter(t=>statusOf(aMap[t.id])==='assigned').length,soon:T.filter(t=>statusOf(aMap[t.id])==='soon').length,late:T.filter(t=>statusOf(aMap[t.id])==='late').length};
+  const counts={free:T.filter(t=>!aMap[t.id]).length,assigned:T.filter(t=>!!aMap[t.id]).length,soon:T.filter(t=>statusOf(aMap[t.id])==='soon').length,late:T.filter(t=>statusOf(aMap[t.id])==='late').length};
 
   const StatusFilters=[
     ['','Todos',''],
