@@ -53,6 +53,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .bpub{background:#fde68a;color:var(--amber)}
 .bfree{background:#bbf7d0;color:var(--green)}
 .balert{background:var(--redbg);color:var(--red)}
+.bamber{background:#fef3c7;color:#92400e}
 .chip{padding:7px 13px;border-radius:20px;border:.5px solid var(--bd2);cursor:pointer;font-size:13px;display:inline-block;margin:3px}
 .chip.sel{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
 .empty{text-align:center;color:var(--text2);font-size:14px;padding:36px 0;line-height:1.6}
@@ -243,7 +244,7 @@ function App({user}){
     e('div',{className:'topbar'},e('div',{className:'topbar-inner'},e('span',{className:'appname'},'Territórios'),e('div',{className:'topbar-right'},e('span',{className:'sync-dot'},'☁ sync'),e('button',{className:'logout-btn',onClick:()=>{if(confirm('Terminar sessão?'))auth.signOut();}},'Sair')))),
     e('div',{className:'content'},
       view==='dashboard'&&e(Dashboard,{T,A,P,AS,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
-      view==='territories'&&e(TerritoriesView,{T,A,AS,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
+      view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
       view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
@@ -287,20 +288,83 @@ function Dashboard({T,A,P,AS,stats,onOpen,onGoAS}){
   );
 }
 
-function TerritoriesView({T,A,AS,cfg,onOpen,onAdd}){
-  const [search,setSearch]=useState(''),[fCat,setFCat]=useState('');
+function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
+  const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState('');
+  const now=Date.now();
+  const SIX_M=weeksMs(26),WARN_M=weeksMs(20);
   const aMap=useMemo(()=>{const m={};AS.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[AS]);
-  const grouped=useMemo(()=>{let l=T;if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));if(fCat)l=l.filter(t=>t.category===fCat);const g={};l.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});return g;},[T,search,fCat]);
+
+  const statusOf=a=>{
+    if(!a)return'free';
+    if(a.assignedAt<(now-SIX_M))return'late';
+    if(a.assignedAt<(now-WARN_M))return'soon';
+    return'assigned';
+  };
+
+  const filtered=useMemo(()=>{
+    let l=T;
+    if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));
+    if(fCat)l=l.filter(t=>t.category===fCat);
+    if(fStatus==='free')l=l.filter(t=>!aMap[t.id]);
+    if(fStatus==='assigned')l=l.filter(t=>!!aMap[t.id]&&statusOf(aMap[t.id])==='assigned');
+    if(fStatus==='soon')l=l.filter(t=>statusOf(aMap[t.id])==='soon');
+    if(fStatus==='late')l=l.filter(t=>statusOf(aMap[t.id])==='late');
+    return l;
+  },[T,search,fCat,fStatus,aMap,now]);
+
+  const grouped=useMemo(()=>{const g={};filtered.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});return g;},[filtered]);
+
+  const counts={free:T.filter(t=>!aMap[t.id]).length,assigned:T.filter(t=>statusOf(aMap[t.id])==='assigned').length,soon:T.filter(t=>statusOf(aMap[t.id])==='soon').length,late:T.filter(t=>statusOf(aMap[t.id])==='late').length};
+
+  const StatusFilters=[
+    ['','Todos',''],
+    ['free','Livres ('+counts.free+')','bfree'],
+    ['assigned','Atribuídos ('+counts.assigned+')','bpub'],
+    ['soon','A expirar ('+counts.soon+')','bamber'],
+    ['late','Atrasados ('+counts.late+')','balert'],
+  ];
+
   return e('div',null,
-    e('div',{className:'rb',style:{marginBottom:10}},e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),e('button',{className:'btn btnp sm',onClick:onAdd},'+  Território')),
-    e('div',{style:{marginBottom:10,display:'flex',flexWrap:'wrap',gap:3}},e('span',{className:'chip'+(fCat===''?' sel':''),onClick:()=>setFCat('')},'Todos'),...cfg.categories.map(c=>e('span',{key:c,className:'chip'+(fCat===c?' sel':''),onClick:()=>setFCat(c===fCat?'':c)},c))),
+    e('div',{className:'rb',style:{marginBottom:10}},
+      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
+      e('button',{className:'btn btnp sm',onClick:onAdd},'+  Território')
+    ),
+    e('div',{style:{marginBottom:6,display:'flex',flexWrap:'wrap',gap:3}},
+      StatusFilters.map(([k,l,cl])=>e('span',{key:k,className:'chip'+(fStatus===k?' sel':''),onClick:()=>setFStatus(k)},l))
+    ),
+    cfg.categories.length>0&&e('div',{style:{marginBottom:10,display:'flex',flexWrap:'wrap',gap:3}},
+      e('span',{className:'chip'+(fCat===''?' sel':''),onClick:()=>setFCat('')},'Todas as categorias'),
+      ...cfg.categories.map(c=>e('span',{key:c,className:'chip'+(fCat===c?' sel':''),onClick:()=>setFCat(c===fCat?'':c)},c))
+    ),
     Object.keys(grouped).length===0&&e('div',{className:'empty'},'Nenhum território.'),
     Object.entries(grouped).map(([cat,terrs])=>e('div',{key:cat},
       e('div',{className:'ch'},cat+' ('+terrs.length+')'),
       terrs.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name)).map(t=>{
-        const a=aMap[t.id],isAl=a&&a.assignedAt<(Date.now()-weeksMs(26));
+        const a=aMap[t.id];
+        const st=statusOf(a);
+        const pub=a?.publisherId?P.find(x=>x.id===a.publisherId):null;
+        const daysAssigned=a?Math.floor((now-a.assignedAt)/86400000):0;
+        const daysLeft=182-daysAssigned;
+        const addrCnt=A.filter(x=>x.territoryId===t.id).length;
         return e('div',{key:t.id,className:'card tap',onClick:()=>onOpen(t)},
-          e('div',{className:'rb'},e('div',{style:{flex:1}},e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},A.filter(x=>x.territoryId===t.id).length+' moradas · '+fmt(t.createdAt))),e('div',{className:'row',style:{gap:5}},isAl&&e('span',{className:'badge balert'},'⚠'),e('span',{className:'badge '+(a?'bpub':'bfree')},a?'Atribuído':'Livre'))),
+          e('div',{className:'rb'},
+            e('div',{style:{flex:1}},
+              e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),
+              e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},addrCnt+' moradas · '+t.category)
+            ),
+            e('div',{className:'row',style:{gap:5}},
+              st==='late'&&e('span',{className:'badge balert'},'⚠ Atrasado'),
+              st==='soon'&&e('span',{className:'badge bamber'},'⏳ A expirar'),
+              st==='assigned'&&e('span',{className:'badge bpub'},'Atribuído'),
+              st==='free'&&e('span',{className:'badge bfree'},'Livre')
+            )
+          ),
+          a&&e('div',{style:{marginTop:6,fontSize:12,color:'var(--text2)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:4}},
+            e('span',null,pub?.name||a.serviceGroup||'Grupo',' · desde ',fmt(a.assignedAt)),
+            st==='late'
+              ? e('span',{style:{color:'var(--red)',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso')
+              : e('span',{style:{color:st==='soon'?'#92400e':'var(--text2)',fontWeight:st==='soon'?600:400}},daysLeft>0?daysLeft+' dias restantes':'Hoje expira')
+          ),
           a&&(a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg)))
         );
       })
