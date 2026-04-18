@@ -225,7 +225,8 @@ function App({user}){
     delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>x!==name)});},
     addAssignment:async f=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:aT,returnedAt:rT,weeksToComplete:wk,notes:f.notes||''});setModal(null);},
     editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk});setModal(null);},
-    returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});}
+    returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});},
+    deleteAssignment:async id=>{if(!confirm('Apagar este registo de atribuição? Esta ação não pode ser desfeita.'))return;await db.collection('assignments').doc(id).delete();}
   };
 
   const openT=t=>{setSelTid(t.id);setView('terr-detail');};
@@ -245,7 +246,7 @@ function App({user}){
     e('div',{className:'content'},
       view==='dashboard'&&e(Dashboard,{T,A,P,AS,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
       view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
-      view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog}),
+      view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog,onDeleteAssignment:ops.deleteAssignment}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a})}),
       view==='reports'&&e(ReportsView,{T,A,AL,P,AS,cfg}),
@@ -372,7 +373,36 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
   );
 }
 
-function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onEditAddr,onDelete,onAssign,onReturn,onEdit,onDeleteLog}){
+function PastAssignments({pastA,P,onDelete,onEdit}){
+  const [open,setOpen]=useState(false);
+  const sorted=[...pastA].sort((a,b)=>b.assignedAt-a.assignedAt);
+  return e('div',{style:{marginTop:6}},
+    e('div',{style:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'},onClick:()=>setOpen(v=>!v)},
+      e('span',{style:{fontSize:12,color:'var(--text2)'}},pastA.length+' atribuição(ões) anterior(es)'),
+      e('span',{style:{fontSize:11,color:'var(--text2)'}},open?'▲':'▼')
+    ),
+    open&&e('div',{style:{marginTop:6,borderTop:'.5px solid var(--bd)',paddingTop:6}},
+      sorted.map(a=>{
+        const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;
+        const weeks=a.weeksToComplete;
+        return e('div',{key:a.id,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'.5px solid var(--bd)'}},
+          e('div',{style:{flex:1,fontSize:12}},
+            e('div',{style:{fontWeight:500}},p?.name||a.serviceGroup||'Grupo'),
+            e('div',{style:{color:'var(--text2)',marginTop:1}},
+              fmt(a.assignedAt),' → ',fmt(a.returnedAt),
+              weeks&&e('span',{style:{marginLeft:6}},'('+weeks+' sem.)')
+            ),
+            (a.tags||[]).length>0&&e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:3}},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg)))
+          ),
+          e('button',{className:'btn sm',style:{fontSize:12,minHeight:30,padding:'4px 8px'},onClick:()=>onEdit(a)},'✏'),
+          e('button',{className:'btn btnd sm',style:{minHeight:30,padding:'4px 8px'},title:'Apagar registo',onClick:()=>onDelete(a.id)},'×')
+        );
+      })
+    )
+  );
+}
+
+function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onEditAddr,onDelete,onAssign,onReturn,onEdit,onDeleteLog,onDeleteAssignment}){
   const [showLog,setShowLog]=useState(false),[copied,setCopied]=useState(false);
   const addrs=A.filter(a=>a.territoryId===territory.id),logs=AL.filter(l=>l.territoryId===territory.id);
   const aA=AS.find(a=>a.territoryId===territory.id&&!a.returnedAt),pub=aA?.publisherId?P.find(p=>p.id===aA.publisherId):null;
@@ -434,7 +464,7 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onE
         e('div',{className:'rb'},e('div',null,e('div',{style:{fontWeight:600}},pub?.name||aA.serviceGroup||'Grupo'),e('div',{style:{fontSize:12,color:'var(--text2)'}},(pub?.serviceGroup||aA.serviceGroup||'')+' · '+fmt(aA.assignedAt)+(isAl?' · ⚠ mais de 6 meses!':''))),e('div',{className:'row',style:{gap:6}},e('button',{className:'btn sm',style:{fontSize:12},onClick:()=>onEdit(aA)},'Editar'),e('button',{className:'btn sm',onClick:()=>onReturn(aA.id)},'Devolver'))),
         (aA.tags||[]).length>0&&e('div',{className:'pill-row'},(aA.tags||[]).map(t=>e('span',{key:t,className:'btag badge'},t)))
       ):e('div',{className:'rb',style:{marginBottom:4}},e('span',{style:{fontSize:13,color:'var(--text2)'}},'Nenhum publicador atribuído'),e('button',{className:'btn btnp sm',onClick:onAssign},'Atribuir')),
-      pastA.length>0&&e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:6}},pastA.length+' atribuições anteriores'),
+      pastA.length>0&&e(PastAssignments,{pastA,P,onDelete:onDeleteAssignment,onEdit:onEdit}),
       e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:12}},[['H','Homens'],['M','Mulheres'],['C','Casais']].map(([k,l])=>e('div',{key:k,style:{background:'var(--bg2)',borderRadius:'var(--rsm)',padding:'10px',textAlign:'center',border:'.5px solid var(--bd)'}},e('div',{style:{fontSize:20,fontWeight:700}},stats[k]),e('div',{style:{fontSize:11,color:'var(--text2)'}},l))))
     ),
     e('div',{className:'rb',style:{margin:'14px 0 10px'}},
