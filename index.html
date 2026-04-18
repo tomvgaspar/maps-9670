@@ -323,20 +323,24 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onE
     lines.push('');
     if(normal.length>0){
       lines.push('── MORADAS ──');
+      lines.push('');
       normal.forEach(a=>{
         let l=a.text+' ['+TL[a.type]+']';
         if(a.notes)l+=' — '+a.notes;
         l+='  •  '+fmt(a.date||a.createdAt);
         lines.push(l);
+        lines.push('');
       });
     }
     if(dnv.length>0){
-      lines.push('');
       lines.push('🚫 NÃO VISITAR');
+      lines.push('');
       dnv.forEach(a=>{
         let l=a.text;
         if(a.notes)l+=' — '+a.notes;
+        l+='  •  '+fmt(a.date||a.createdAt);
         lines.push(l);
+        lines.push('');
       });
     }
     navigator.clipboard.writeText(lines.join('\n')).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}).catch(()=>alert('Não foi possível copiar.'));
@@ -580,7 +584,7 @@ function ReportsView({T,A,AL,P,AS,cfg}){
 
 function AddressLogSection({A,AL,fromMs,toMs}){
   const [show,setShow]=useState(false);
-  const inRange=AL.filter(l=>{const t=l.timestamp||0;return t>=fromMs&&t<=toMs;});
+  const inRange=AL.filter(l=>{const t=l.date||l.timestamp||0;return t>=fromMs&&t<=toMs;});
   const added=inRange.filter(l=>l.action==='add').sort((a,b)=>b.timestamp-a.timestamp);
   const removed=inRange.filter(l=>l.action==='delete').sort((a,b)=>b.timestamp-a.timestamp);
   if(inRange.length===0)return null;
