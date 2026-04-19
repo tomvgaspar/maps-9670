@@ -43,7 +43,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .btn{padding:10px 16px;border:.5px solid var(--bd2);border-radius:var(--rsm);background:transparent;color:var(--text);cursor:pointer;font-size:14px;font-family:inherit;white-space:nowrap;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .btn:active{opacity:.7}
 .btnp{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
-.btnd{color:var(--red);border-color:var(--redbdr)}
+.btnd{color:#DC2726;border-color:#fecaca}
 .sm{padding:7px 12px;font-size:13px;min-height:36px}
 .lbl{font-size:13px;color:var(--text2);margin-bottom:5px;display:block}
 .fg{margin-bottom:12px}
@@ -54,7 +54,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .bcat{background:var(--bg2);color:var(--text2);font-size:12px;padding:3px 8px;border-radius:20px}
 .btag{background:#fef3c7;color:var(--amber);font-size:11px;padding:2px 8px;border-radius:20px}
 .bpub{background:#3E74ED;color:#fff}
-.bfree{background:#1a1a1a;color:#F9A219;border:.5px solid #F9A219}
+.bfree{background:#bbf7d0;color:#15803d}
 .balert{background:#FF4C00;color:#fff}
 .bunworked{background:#FF4C00;color:#fff}
 .bamber{background:#fef3c7;color:#92400e}
@@ -64,14 +64,14 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .back{cursor:pointer;color:var(--text2);font-size:14px;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;min-height:44px}
 .logrow{padding:7px 0;border-bottom:.5px solid var(--bd);font-size:13px;color:var(--text2)}
 .logrow:last-child{border-bottom:none}
-.ladd{color:var(--green)}.ldel{color:var(--red)}
+.ladd{color:#13803D}.ldel{color:#DC2726}
 .ch{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)}
 .mlink{color:#2563eb;font-size:13px;text-decoration:none}
 .addr-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:.5px solid var(--bd)}
 .addr-row:last-child{border-bottom:none}
-.alert-box{background:var(--redbg);border:.5px solid var(--redbdr);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
-.alert-title{font-size:14px;font-weight:600;color:var(--red);margin-bottom:8px}
-.alert-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:.5px solid var(--redbdr);font-size:13px;color:var(--red)}
+.alert-box{background:#fff3f0;border:.5px solid #FF4C00;border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.alert-title{font-size:14px;font-weight:600;color:#FF4C00;margin-bottom:8px}
+.alert-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:.5px solid #FF4C00;font-size:13px;color:#FF4C00}
 .alert-row:last-child{border-bottom:none}
 .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border:.5px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
 @media(min-width:420px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
@@ -820,6 +820,8 @@ function ReportsView({T,A,AL,P,AS,cfg}){
     if(showWorked)statusList.push('Trabalhados');if(showAssigned)statusList.push('Em mãos');if(showUnworked)statusList.push('Não trabalhados');if(showLate)statusList.push('Em atraso');
     if(statusList.length<4)filters.push('Estado: '+statusList.join(', '));
 
+    const added=logsInScope.filter(l=>l.action==='add').sort((a,b)=>(b.date||b.timestamp)-(a.date||a.timestamp));
+    const removed=logsInScope.filter(l=>l.action==='delete').sort((a,b)=>(b.date||b.timestamp)-(a.date||a.timestamp));
     const rows=results.map(({t,isWorked,isAssigned,isUnworked,isLate,activeA,pub,doneInRange})=>{
       const status=isLate?'⚠ Em atraso':isWorked?'✓ Concluído':isAssigned?'Em mãos':'Não trabalhado';
       const who=activeA?(pub?.name||activeA.serviceGroup||'Grupo'):'—';
@@ -880,6 +882,7 @@ ${rows.map(r=>{
   return'<tr><td>'+r.num+'</td><td><strong>'+r.name+'</strong></td><td>'+r.cat+'</td><td><span class="badge '+bc+'">'+r.status+'</span></td><td>'+r.who+'</td><td>'+r.since+'</td><td>'+( r.done||'—')+'</td><td>'+r.tags+'</td></tr>';
 }).join('')}
 </tbody></table>
+${added.length>0||removed.length>0?`<div style="margin-top:28px;border-top:2px solid #111;padding-top:14px"><div style="font-size:14px;font-weight:600;margin-bottom:12px">Histórico de moradas</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">${added.length>0?`<div><div style="font-size:10px;font-weight:600;color:#13803D;margin-bottom:8px;text-transform:uppercase">+ Adicionadas (${added.length})</div>${added.slice(0,50).map(l=>'<div style="padding:4px 0;border-bottom:.5px solid #e5e5e5;font-size:10px"><strong>'+l.addressText+'</strong>  <span style="color:#666">'+l.territoryName+' · '+(TL[l.addressType]||'')+' · '+fmt(l.date||l.timestamp)+'</span></div>').join('')}</div>`:''}${removed.length>0?`<div><div style="font-size:10px;font-weight:600;color:#DC2726;margin-bottom:8px;text-transform:uppercase">- Removidas (${removed.length})</div>${removed.slice(0,50).map(l=>'<div style="padding:4px 0;border-bottom:.5px solid #e5e5e5;font-size:10px"><strong>'+l.addressText+'</strong>  <span style="color:#666">'+l.territoryName+' · '+(TL[l.addressType]||'')+' · '+fmt(l.date||l.timestamp)+'</span>'+(l.reason?'<br><span style="color:#DC2726;font-style:italic">'+l.reason+'</span>':'')+'</div>').join('')}</div>`:''}</div></div>`:''}
 <div class="footer">Gestão de Territórios · ${rows.length} territórios listados</div>
 </body></html>`;
 
@@ -969,32 +972,51 @@ ${rows.map(r=>{
 }
 
 function AddressLogSection({A,AL,fromMs,toMs}){
-  const [show,setShow]=useState(false);
+  const [show,setShow]=useState(true);
+  const [tab,setTab]=useState('added');
   const inRange=AL.filter(l=>{const t=l.date||l.timestamp||0;return t>=fromMs&&t<=toMs;});
-  const added=inRange.filter(l=>l.action==='add').sort((a,b)=>b.timestamp-a.timestamp);
-  const removed=inRange.filter(l=>l.action==='delete').sort((a,b)=>b.timestamp-a.timestamp);
+  const added=inRange.filter(l=>l.action==='add').sort((a,b)=>(b.date||b.timestamp)-(a.date||a.timestamp));
+  const removed=inRange.filter(l=>l.action==='delete').sort((a,b)=>(b.date||b.timestamp)-(a.date||a.timestamp));
   if(inRange.length===0)return null;
   return e('div',{style:{marginTop:16}},
-    e('div',{className:'rb',style:{cursor:'pointer',marginBottom:show?10:0},onClick:()=>setShow(v=>!v)},
-      e('span',{style:{fontWeight:700,fontSize:15}},'Movimentos de moradas ('+inRange.length+')'),
+    e('div',{className:'rb',style:{cursor:'pointer',marginBottom:10},onClick:()=>setShow(v=>!v)},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Histórico de moradas'),
       e('div',{className:'row',style:{gap:6}},
-        e('span',{className:'badge bfree'},'+'+added.length),
-        e('span',{className:'badge balert'},'-'+removed.length),
+        e('span',{style:{background:'#dcfce7',color:'#13803D',fontSize:12,padding:'2px 9px',borderRadius:20,fontWeight:500}},'+'+added.length),
+        e('span',{style:{background:'#fce8e8',color:'#DC2726',fontSize:12,padding:'2px 9px',borderRadius:20,fontWeight:500}},'-'+removed.length),
         e('span',{style:{color:'var(--text2)',fontSize:13}},show?'▲':'▼')
       )
     ),
     show&&e('div',null,
-      added.length>0&&e('div',{style:{marginBottom:12}},
-        e('div',{className:'ch',style:{color:'var(--green)'}},'Adicionadas ('+added.length+')'),
-        added.map(l=>e('div',{key:l.id,className:'logrow'},
-          e('span',{className:'ladd'},l.territoryName||'—'),' · ',l.addressText,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp)
+      e('div',{style:{display:'flex',gap:6,marginBottom:12}},
+        e('button',{className:'tog'+(tab==='added'?' on':''),onClick:()=>setTab('added')},'Adicionadas ('+added.length+')'),
+        e('button',{className:'tog'+(tab==='removed'?' on':''),onClick:()=>setTab('removed')},'Removidas ('+removed.length+')')
+      ),
+      tab==='added'&&e('div',null,
+        added.length===0&&e('div',{className:'empty'},'Nenhuma morada adicionada neste período.'),
+        added.map(l=>e('div',{key:l.id,style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 0',borderBottom:'.5px solid var(--bd)'}},
+          e('div',{style:{width:3,background:'#13803D',borderRadius:2,alignSelf:'stretch',flexShrink:0}}),
+          e('div',{style:{flex:1}},
+            e('div',{style:{fontWeight:500,fontSize:13}},l.addressText),
+            e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},
+              l.territoryName,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp)
+            )
+          ),
+          e('span',{className:'badge b'+l.addressType,style:{flexShrink:0}},TL[l.addressType]||l.addressType)
         ))
       ),
-      removed.length>0&&e('div',null,
-        e('div',{className:'ch',style:{color:'var(--red)'}},'Removidas ('+removed.length+')'),
-        removed.map(l=>e('div',{key:l.id,className:'logrow'},
-          e('span',{className:'ldel'},l.territoryName||'—'),' · ',l.addressText,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp),
-          l.reason&&e('div',{style:{fontSize:11,color:'var(--red)',marginTop:2}},'Motivo: '+l.reason)
+      tab==='removed'&&e('div',null,
+        removed.length===0&&e('div',{className:'empty'},'Nenhuma morada removida neste período.'),
+        removed.map(l=>e('div',{key:l.id,style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 0',borderBottom:'.5px solid var(--bd)'}},
+          e('div',{style:{width:3,background:'#DC2726',borderRadius:2,alignSelf:'stretch',flexShrink:0}}),
+          e('div',{style:{flex:1}},
+            e('div',{style:{fontWeight:500,fontSize:13}},l.addressText),
+            e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},
+              l.territoryName,' · ',TL[l.addressType]||l.addressType,' · ',fmt(l.date||l.timestamp)
+            ),
+            l.reason&&e('div',{style:{fontSize:11,color:'#DC2726',marginTop:2,fontStyle:'italic'}},'Motivo: '+l.reason)
+          ),
+          e('span',{className:'badge b'+l.addressType,style:{flexShrink:0}},TL[l.addressType]||l.addressType)
         ))
       )
     )
