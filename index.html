@@ -163,17 +163,16 @@ function calcStats(T,A,P,AS){
 }
 
 function LoginScreen(){
-  const [mode,setMode]=useState('login'),[email,setEmail]=useState(''),[pass,setPass]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
-  const errMsg=c=>({'auth/user-not-found':'Email não encontrado.','auth/wrong-password':'Palavra-passe incorreta.','auth/email-already-in-use':'Email já registado.','auth/weak-password':'Mínimo 6 caracteres.','auth/invalid-credential':'Email ou palavra-passe incorretos.'}[c]||'Erro. Tenta novamente.');
-  const submit=async()=>{if(!email||!pass){setErr('Preenche todos os campos.');return;}setBusy(true);setErr('');try{mode==='login'?await auth.signInWithEmailAndPassword(email,pass):await auth.createUserWithEmailAndPassword(email,pass);}catch(ex){setErr(errMsg(ex.code));}setBusy(false);};
+  const [email,setEmail]=useState(''),[pass,setPass]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
+  const errMsg=c=>({'auth/user-not-found':'Email não encontrado.','auth/wrong-password':'Palavra-passe incorreta.','auth/invalid-credential':'Email ou palavra-passe incorretos.'}[c]||'Erro. Tenta novamente.');
+  const submit=async()=>{if(!email||!pass){setErr('Preenche todos os campos.');return;}setBusy(true);setErr('');try{await auth.signInWithEmailAndPassword(email,pass);}catch(ex){setErr(errMsg(ex.code));}setBusy(false);};
   return e('div',{className:'login-page'},e('div',{className:'login-box'},
-    e('div',{className:'login-logo'},'Territórios'),
-    e('div',{className:'login-sub'},mode==='login'?'Inicia sessão para continuar.':'Cria a tua conta.'),
+    e('img',{src:'icon-512.png',alt:'Territórios',style:{width:96,height:96,borderRadius:22,marginBottom:20,display:'block',marginLeft:'auto',marginRight:'auto'}}),
+    e('div',{className:'login-sub',style:{textAlign:'center',marginBottom:24}},'Inicia sessão para continuar.'),
     err&&e('div',{className:'login-err'},err),
     e('div',{className:'fg'},e('label',{className:'lbl'},'Email'),e('input',{type:'email',placeholder:'email@exemplo.com',value:email,onChange:ev=>setEmail(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&submit()})),
-    e('div',{className:'fg'},e('label',{className:'lbl'},'Palavra-passe'),e('input',{type:'password',placeholder:'Mínimo 6 caracteres',value:pass,onChange:ev=>setPass(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&submit()})),
-    e('button',{className:'btn btnp',style:{width:'100%',marginTop:4},onClick:submit},busy?'...':(mode==='login'?'Entrar':'Criar conta')),
-    e('div',{className:'login-toggle'},mode==='login'?e('span',null,'Sem conta? ',e('span',{className:'login-link',onClick:()=>{setMode('register');setErr('');}},  'Criar')):e('span',null,'Já tens conta? ',e('span',{className:'login-link',onClick:()=>{setMode('login');setErr('');}},  'Entrar')))
+    e('div',{className:'fg'},e('label',{className:'lbl'},'Palavra-passe'),e('input',{type:'password',placeholder:'Palavra-passe',value:pass,onChange:ev=>setPass(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&submit()})),
+    e('button',{className:'btn btnp',style:{width:'100%',marginTop:4},onClick:submit},busy?'...':'Entrar')
   ));
 }
 
@@ -1091,6 +1090,92 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onEditCamp
     }))
   );
 
+  const [backupLoading,setBackupLoading]=useState(false);
+  const [restoreLoading,setRestoreLoading]=useState(false);
+  const [restoreError,setRestoreError]=useState('');
+
+  const exportAll=async()=>{
+    setBackupLoading(true);
+    try{
+      const [territories,addresses,addressLog,publishers,assignments]=await Promise.all([
+        db.collection('territories').get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))),
+        db.collection('addresses').get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))),
+        db.collection('addressLog').get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))),
+        db.collection('publishers').get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))),
+        db.collection('assignments').get().then(s=>s.docs.map(d=>({id:d.id,...d.data()}))),
+      ]);
+      const backup={
+        version:2,
+        exportedAt:new Date().toISOString(),
+        settings:cfg,
+        territories,addresses,addressLog,publishers,assignments
+      };
+      // Convert Firestore Timestamps to ms numbers
+      const clean=JSON.parse(JSON.stringify(backup,(k,v)=>{
+        if(v&&typeof v==='object'&&v.seconds!==undefined)return v.seconds*1000+(v.nanoseconds||0)/1e6;
+        return v;
+      }));
+      const blob=new Blob([JSON.stringify(clean,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const d=new Date();
+      a.href=url;
+      a.download='backup-territorios-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }catch(err){alert('Erro ao exportar: '+err.message);}
+    setBackupLoading(false);
+  };
+
+  const importAll=async ev=>{
+    const file=ev.target.files[0];if(!file)return;
+    if(!confirm('Isto vai substituir TODOS os dados existentes. Tens a certeza?'))return;
+    setRestoreLoading(true);setRestoreError('');
+    try{
+      const text=await file.text();
+      const data=JSON.parse(text);
+      if(!data.territories||!data.addresses||!data.publishers||!data.assignments)throw new Error('Ficheiro de backup inválido ou incompleto.');
+
+      const writeCollection=async(name,docs)=>{
+        const batch=db.batch();
+        // Delete existing
+        const existing=await db.collection(name).get();
+        existing.docs.forEach(d=>batch.delete(d.ref));
+        await batch.commit();
+        // Write in batches of 400
+        for(let i=0;i<docs.length;i+=400){
+          const b=db.batch();
+          docs.slice(i,i+400).forEach(doc=>{
+            const {id,...rest}=doc;
+            // Convert ms numbers back to Timestamps where needed
+            const converted={};
+            Object.entries(rest).forEach(([k,v])=>{
+              const tsKeys=['createdAt','assignedAt','returnedAt','timestamp','date'];
+              if(tsKeys.includes(k)&&typeof v==='number'&&v>1e12){
+                converted[k]=firebase.firestore.Timestamp.fromMillis(v);
+              } else {
+                converted[k]=v;
+              }
+            });
+            b.set(db.collection(name).doc(id),converted);
+          });
+          await b.commit();
+        }
+      };
+
+      await writeCollection('territories',data.territories);
+      await writeCollection('addresses',data.addresses);
+      await writeCollection('addressLog',data.addressLog||[]);
+      await writeCollection('publishers',data.publishers);
+      await writeCollection('assignments',data.assignments);
+      if(data.settings)await db.collection('config').doc('settings').set(data.settings);
+      alert('Backup restaurado com sucesso! A app vai recarregar.');
+      window.location.reload();
+    }catch(err){setRestoreError('Erro: '+err.message);}
+    setRestoreLoading(false);
+    ev.target.value='';
+  };
+
   const exportSettings=()=>{
     const data=JSON.stringify({categories:cfg.categories,campaigns:cfg.campaigns,categoryColors:cfg.categoryColors||{},campaignColors:cfg.campaignColors||{}},null,2);
     const blob=new Blob([data],{type:'application/json'});
@@ -1123,14 +1208,24 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onEditCamp
     e('div',{className:'sep'}),
     e('div',null,
       e('div',{style:{fontWeight:700,fontSize:15,marginBottom:10}},'Cópia de segurança'),
-      e('div',{style:{fontSize:13,color:'var(--text2)',marginBottom:12}},'Exporta as categorias e campanhas para um ficheiro JSON. Importa para as restaurar.'),
-      e('div',{className:'row',style:{gap:8}},
+      e('div',{style:{fontWeight:600,fontSize:13,marginBottom:6}},'Definições (categorias e campanhas)'),
+      e('div',{className:'row',style:{gap:8,marginBottom:14}},
         e('button',{className:'btn',style:{gap:6},onClick:exportSettings},'⬇ Exportar definições'),
         e('label',{className:'btn',style:{gap:6,cursor:'pointer'}},
           '⬆ Importar definições',
           e('input',{type:'file',accept:'.json',onChange:importSettings,style:{display:'none'}})
         )
-      )
+      ),
+      e('div',{style:{fontWeight:600,fontSize:13,marginBottom:6}},'Backup completo'),
+      e('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:8}},'Exporta todos os dados: territórios, moradas, publicadores, atribuições e histórico.'),
+      e('div',{className:'row',style:{gap:8}},
+        e('button',{className:'btn btnp',style:{gap:6},onClick:exportAll,disabled:backupLoading},backupLoading?'A exportar...':'⬇ Backup completo'),
+        e('label',{className:'btn',style:{gap:6,cursor:'pointer',opacity:restoreLoading?0.6:1}},
+          restoreLoading?'A restaurar...':'⬆ Restaurar backup',
+          e('input',{type:'file',accept:'.json',onChange:importAll,style:{display:'none'},disabled:restoreLoading})
+        )
+      ),
+      restoreError&&e('div',{style:{fontSize:12,color:'var(--red)',marginTop:8}},restoreError)
     )
   );
 }
