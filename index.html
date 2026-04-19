@@ -182,8 +182,8 @@ function Root(){
 
 function App({user}){
   const [T,setT]=useState([]),[A,setA]=useState([]),[AL,setAL]=useState([]),[P,setP]=useState([]),[AS,setAS]=useState([]);
-  const [cfg,setCfg]=useState({categories:[],campaigns:[]});
-  const cfgRef=useRef({categories:[],campaigns:[]});
+  const [cfg,setCfg]=useState({categories:[],campaigns:[],categoryColors:{},campaignColors:{}});
+  const cfgRef=useRef({categories:[],campaigns:[],categoryColors:{},campaignColors:{}});
   const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null);
   const ld=useRef(new Set());
   useEffect(()=>{
@@ -195,9 +195,9 @@ function App({user}){
       db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('p');},e=>{console.warn('publishers',e);chk('p');}),
       db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk('as');},e=>{console.warn('assignments',e);chk('as');}),
       db.collection('config').doc('settings').onSnapshot(d=>{
-        const defaultCfg={categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[]};
+        const defaultCfg={categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[],categoryColors:{},campaignColors:{}};
         const data=d.exists?d.data():defaultCfg;
-        const normalized={categories:Array.isArray(data.categories)?data.categories:defaultCfg.categories,campaigns:Array.isArray(data.campaigns)?data.campaigns:[]};
+        const normalized={categories:Array.isArray(data.categories)?data.categories:defaultCfg.categories,campaigns:Array.isArray(data.campaigns)?data.campaigns:[],categoryColors:data.categoryColors||{},campaignColors:data.campaignColors||{}};
         if(!d.exists)db.collection('config').doc('settings').set(normalized);
         cfgRef.current=normalized;
         setCfg(normalized);
@@ -223,6 +223,7 @@ function App({user}){
     delCategory:async name=>{if(!confirm('Apagar categoria?'))return;const c=cfgRef.current;await saveCfg({...c,categories:c.categories.filter(x=>x!==name)});},
     addCampaign:async name=>{const c=cfgRef.current;if(!name||c.campaigns.includes(name))return;await saveCfg({...c,campaigns:[...c.campaigns,name]});setModal(null);},
     delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>x!==name)});},
+    setColor:async(type,item,color)=>{const c=cfgRef.current;if(type==='category'){const cc={...c.categoryColors||{}};if(color)cc[item]=color;else delete cc[item];await saveCfg({...c,categoryColors:cc});}else{const cc={...c.campaignColors||{}};if(color)cc[item]=color;else delete cc[item];await saveCfg({...c,campaignColors:cc});}},
     addAssignment:async f=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:aT,returnedAt:rT,weeksToComplete:wk,notes:f.notes||''});setModal(null);},
     editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk,tags:f.tags||[],publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null});setModal(null);},
     returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});},
@@ -244,13 +245,13 @@ function App({user}){
   return e('div',null,
     e('div',{className:'topbar'},e('div',{className:'topbar-inner'},e('span',{className:'appname'},'Territórios'),e('div',{className:'topbar-right'},e('span',{className:'sync-dot'},'☁ sync'),e('button',{className:'logout-btn',onClick:()=>{if(confirm('Terminar sessão?'))auth.signOut();}},'Sair')))),
     e('div',{className:'content'},
-      view==='dashboard'&&e(Dashboard,{T,A,P,AS,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
+      view==='dashboard'&&e(Dashboard,{T,A,AL,P,AS,cfg,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
       view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
       view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog,onDeleteAssignment:ops.deleteAssignment}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDelete:ops.deleteAssignment}),
       view==='reports'&&e(ReportsView,{T,A,AL,P,AS,cfg}),
-      view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign})
+      view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign,onSetColor:ops.setColor})
     ),
     e('nav',{className:'nav'},navs.map(n=>e('button',{key:n.k,className:'nb'+(view===n.k||view==='terr-detail'&&n.k==='territories'?' act':''),onClick:()=>navTo(n.k)},
       n.k==='assignments'&&stats.alerts.length>0&&e('span',{className:'nb-badge'},stats.alerts.length),
@@ -263,37 +264,151 @@ function App({user}){
 function MiniBar({value,max,label}){const h=max>0?Math.max(value>0?6:2,Math.round(value/max*68)):2;return e('div',{className:'bar-col'},e('span',{className:'bar-val'},value),e('div',{style:{flex:1,width:'100%',display:'flex',alignItems:'flex-end'}}),e('div',{className:'bar-body',style:{height:h+'px'}}),e('div',{className:'bar-lbl'},label));}
 function Chart({title,bars}){const max=Math.max(...bars.map(b=>b.v),1);return e('div',{className:'chart-box'},e('div',{className:'chart-title'},title),e('div',{className:'bars'},bars.map((b,i)=>e(MiniBar,{key:i,...b,max}))));}
 
-function Dashboard({T,A,P,AS,stats,onOpen,onGoAS}){
-  const [search,setSearch]=useState('');const now=Date.now();
+function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
+  const [search,setSearch]=useState('');
+  const [period,setPeriod]=useState(12);
+  const [selCats,setSelCats]=useState([]);
+  const [selCamp,setSelCamp]=useState([]);
+  const now=Date.now();
+
+  const periodMs=period*30.44*24*3600000;
+  const fromMs=now-periodMs;
+
+  const catColors=cfg.categoryColors||{};
+  const campColors=cfg.campaignColors||{};
+
+  const filteredT=useMemo(()=>{
+    let l=T;
+    if(selCats.length>0)l=l.filter(t=>selCats.includes(t.category));
+    return l;
+  },[T,selCats]);
+
+  const filteredTids=useMemo(()=>new Set(filteredT.map(t=>t.id)),[filteredT]);
+
+  const filteredAS=useMemo(()=>{
+    let l=AS.filter(a=>filteredTids.has(a.territoryId));
+    if(selCamp.length>0)l=l.filter(a=>(a.tags||[]).some(tg=>selCamp.includes(tg)));
+    return l;
+  },[AS,filteredTids,selCamp]);
+
+  const dynStats=useMemo(()=>{
+    const act=filteredAS.filter(a=>!a.returnedAt);
+    const done=filteredAS.filter(a=>a.returnedAt);
+    const eTids=new Set(filteredAS.map(a=>a.territoryId));
+    const doneInPeriod=done.filter(a=>a.returnedAt>=fromMs);
+    const pubsActive=new Set(filteredAS.filter(a=>a.assignedAt>=fromMs&&a.publisherId).map(a=>a.publisherId));
+    const wks=done.filter(a=>a.weeksToComplete>0).map(a=>a.weeksToComplete);
+    const avgW=wks.length?Math.round(wks.reduce((s,x)=>s+x,0)/wks.length):0;
+    const uw=filteredT.filter(t=>!eTids.has(t.id));
+    const addrs=A.filter(a=>filteredTids.has(a.territoryId));
+    const logsInPeriod=AL.filter(l=>filteredTids.has(l.territoryId)&&(l.date||l.timestamp||0)>=fromMs);
+    const addedInPeriod=logsInPeriod.filter(l=>l.action==='add').length;
+    const removedInPeriod=logsInPeriod.filter(l=>l.action==='delete').length;
+    const inProg3=act.filter(a=>a.assignedAt<(now-weeksMs(13))).length;
+    const inProg6=act.filter(a=>a.assignedAt<(now-weeksMs(26))).length;
+    const unw6=uw.filter(t=>t.createdAt<(now-weeksMs(26))).length;
+    const unw12=uw.filter(t=>t.createdAt<(now-52*7*24*3600000)).length;
+    const unw24=uw.filter(t=>t.createdAt<(now-104*7*24*3600000)).length;
+    return{total:filteredT.length,withPub:act.length,notAssigned:filteredT.length-act.length,totalAddresses:addrs.length,addedInPeriod,removedInPeriod,doneInPeriod:doneInPeriod.length,completedPct:filteredT.length?Math.round(doneInPeriod.length/filteredT.length*100):0,inProgress:act.length,inProg3,inProg6,unworked:uw.length,unw6,unw12,unw24,avgWeeks:avgW,coveragePct:filteredT.length?Math.round(doneInPeriod.length/filteredT.length*100):0,participationPct:P.length?Math.round(pubsActive.size/P.length*100):0,alerts:act.filter(a=>a.assignedAt<(now-weeksMs(26)))};
+  },[filteredT,filteredAS,filteredTids,A,AL,fromMs,now,P]);
+
   const aMap=useMemo(()=>{const m={};AS.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[AS]);
   const dMap=useMemo(()=>{const cnt={},wks={},last={};AS.filter(a=>a.returnedAt).forEach(a=>{cnt[a.territoryId]=(cnt[a.territoryId]||0)+1;if(a.weeksToComplete){if(!wks[a.territoryId])wks[a.territoryId]=[];wks[a.territoryId].push(a.weeksToComplete);}if(!last[a.territoryId]||a.returnedAt>last[a.territoryId])last[a.territoryId]=a.returnedAt;});return{cnt,wks,last};},[AS]);
   const list=useMemo(()=>{let l=T;if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));return l.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name));},[T,search]);
+
+  const toggleCat=c=>setSelCats(s=>s.includes(c)?s.filter(x=>x!==c):[...s,c]);
+  const toggleCamp=c=>setSelCamp(s=>s.includes(c)?s.filter(x=>x!==c):[...s,c]);
+
+  const s=dynStats;
+
   return e('div',null,
-    stats.alerts.length>0&&e('div',{className:'alert-box'},
-      e('div',{className:'alert-title'},'⚠ '+stats.alerts.length+' território(s) há mais de 6 meses'),
-      stats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToWeeks(now-a.assignedAt)+'sem'),e('button',{className:'btn btnd sm',onClick:onGoAS},'Ver'));}),
-      stats.alerts.length>3&&e('div',{style:{fontSize:12,color:'var(--red)',paddingTop:4}},'+'+( stats.alerts.length-3)+' mais')
+    dynStats.alerts.length>0&&e('div',{className:'alert-box'},
+      e('div',{className:'alert-title'},'⚠ '+dynStats.alerts.length+' território(s) há mais de 6 meses'),
+      dynStats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToWeeks(now-a.assignedAt)+'sem'),e('button',{className:'btn btnd sm',onClick:onGoAS},'Ver'));}),
+      dynStats.alerts.length>3&&e('div',{style:{fontSize:12,color:'var(--red)',paddingTop:4}},'+'+( dynStats.alerts.length-3)+' mais')
     ),
-    e('div',{className:'kpi-grid'},[['Total cartões',stats.total,''],['Com publicador',stats.withPub,'kv-b'],['Não designados',stats.notAssigned,''],['Moradas',stats.totalAddresses,''],['Concluídos (12m)',stats.doneLast12+' ('+stats.completedPct+'%)','kv-g'],['Em curso',stats.inProgress,'kv-b'],['Não trabalhados',stats.unworked,'kv-r'],['Semanas médias',stats.avgWeeks||'—',''],['Cobertura 12m',stats.coveragePct+'%','kv-g'],['Participação',stats.participationPct+'%','kv-g']].map(([l,v,c],i)=>e('div',{key:i,className:'kpi-cell'},e('div',{className:'kpi-lbl'},l),e('div',{className:'kpi-val '+(c||'')},v)))),
-    e('div',{className:'charts-row'},e(Chart,{title:'Concluídos',bars:[{v:stats.doneLast3,l:'3m'},{v:stats.doneLast6,l:'6m'},{v:stats.doneLast12,l:'12m'}]}),e(Chart,{title:'Em curso',bars:[{v:stats.inProgress,l:'Todos'},{v:stats.inProg3,l:'>3m'},{v:stats.inProg6,l:'>6m'}]}),e(Chart,{title:'Não trab.',bars:[{v:stats.unw6,l:'>6m'},{v:stats.unw12,l:'>12m'},{v:stats.unw24,l:'>24m'}]})),
-    e('div',{className:'rb',style:{marginBottom:9}},e('span',{style:{fontWeight:700,fontSize:15}},'Todos os territórios'),e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{width:'auto',maxWidth:180,fontSize:14,padding:'7px 10px'}})),
+
+    e('div',{className:'card',style:{marginBottom:10}},
+      e('div',{style:{fontWeight:600,fontSize:14,marginBottom:10}},'Filtros do dashboard'),
+      e('div',{style:{marginBottom:8}},
+        e('div',{className:'lbl',style:{marginBottom:5}},'Período'),
+        e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          [3,6,9,12].map(m=>e('button',{key:m,className:'tog'+(period===m?' on':''),onClick:()=>setPeriod(m)},m+' meses'))
+        )
+      ),
+      cfg.categories.length>0&&e('div',{style:{marginBottom:8}},
+        e('div',{className:'lbl',style:{marginBottom:5}},'Categorias'),
+        e('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
+          ...cfg.categories.map(c=>{const cc=catColors[c]||'';return e('span',{key:c,className:'chip'+(selCats.includes(c)?' sel':''),style:cc&&!selCats.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleCat(c)},c);})
+        )
+      ),
+      cfg.campaigns.length>0&&e('div',null,
+        e('div',{className:'lbl',style:{marginBottom:5}},'Campanhas'),
+        e('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
+          ...cfg.campaigns.map(c=>{const cc=campColors[c]||'';return e('span',{key:c,className:'chip'+(selCamp.includes(c)?' sel':''),style:cc&&!selCamp.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleCamp(c)},c);})
+        )
+      )
+    ),
+
+    e('div',{className:'kpi-grid'},
+      [
+        ['Total cartões',s.total,''],
+        ['Com publicador',s.withPub,'kv-b'],
+        ['Não designados',s.notAssigned,''],
+        ['Moradas',s.totalAddresses,''],
+        ['Adicionadas ('+period+'m)',s.addedInPeriod,'kv-g'],
+        ['Removidas ('+period+'m)',s.removedInPeriod,'kv-r'],
+        ['Concluídos ('+period+'m)',s.doneInPeriod+' ('+s.completedPct+'%)','kv-g'],
+        ['Em curso',s.inProgress,'kv-b'],
+        ['Não trabalhados',s.unworked,'kv-r'],
+        ['Semanas médias',s.avgWeeks||'—',''],
+        ['Cobertura '+period+'m',s.coveragePct+'%','kv-g'],
+        ['Participação',s.participationPct+'%','kv-g'],
+      ].map(([l,v,c],i)=>e('div',{key:i,className:'kpi-cell'},e('div',{className:'kpi-lbl'},l),e('div',{className:'kpi-val '+(c||'')},v)))
+    ),
+
+    e('div',{className:'charts-row'},
+      e(Chart,{title:'Concluídos',bars:[{v:s.doneInPeriod,l:period+'m'},{v:AS.filter(a=>a.returnedAt&&a.returnedAt>=(now-weeksMs(26))).length,l:'6m'},{v:AS.filter(a=>a.returnedAt&&a.returnedAt>=(now-365*24*3600000)).length,l:'12m'}]}),
+      e(Chart,{title:'Em curso',bars:[{v:s.inProgress,l:'Todos'},{v:s.inProg3,l:'>3m'},{v:s.inProg6,l:'>6m'}]}),
+      e(Chart,{title:'Não trabalhados',bars:[{v:s.unw6,l:'>6m'},{v:s.unw12,l:'>12m'},{v:s.unw24,l:'>24m'}]})
+    ),
+
+    e('div',{className:'rb',style:{marginBottom:9}},
+      e('span',{style:{fontWeight:700,fontSize:15}},'Todos os territórios'),
+      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{width:'auto',maxWidth:180,fontSize:14,padding:'7px 10px'}})
+    ),
     e('div',{className:'tbl-wrap'},e('table',null,
       e('thead',null,e('tr',null,e('th',null,'Território'),e('th',null,'Estado'),e('th',null,'Publicador'),e('th',null,'Devolvido'),e('th',{style:{textAlign:'center'}},'#'),e('th',{style:{textAlign:'center'}},'Sem'))),
       e('tbody',null,list.map(t=>{
         const a=aMap[t.id],p=a?.publisherId?P.find(x=>x.id===a.publisherId):null;
         const cnt=dMap.cnt[t.id]||0,wA=dMap.wks[t.id]||[],avgW=wA.length?Math.round(wA.reduce((s,x)=>s+x,0)/wA.length):0;
         const isAl=a&&a.assignedAt<(now-weeksMs(26));
-        return e('tr',{key:t.id},e('td',null,e('span',{className:'td-name',onClick:()=>onOpen(t)},t.num&&e('span',{className:'td-num'},t.num+' »'),t.name)),e('td',null,a?e('span',{className:'badge '+(isAl?'balert':'bpub')},isAl?'⚠ Alerta':'Atribuído'):e('span',{className:'badge bfree'},'Livre')),e('td',{style:{fontSize:12}},a?(p?.name||a.serviceGroup||'—')+(a.assignedAt?' ('+fmt(a.assignedAt)+')':''):'—'),e('td',{style:{fontSize:12}},fmt(dMap.last[t.id])),e('td',{style:{textAlign:'center',fontSize:13}},cnt||'—'),e('td',{style:{textAlign:'center',fontSize:13}},avgW||'—'));
+        const catColor=catColors[t.category]||'';
+        return e('tr',{key:t.id,style:catColor?{borderLeft:'3px solid '+catColor}:{}},
+          e('td',null,e('span',{className:'td-name',onClick:()=>onOpen(t)},t.num&&e('span',{className:'td-num'},t.num+' »'),t.name)),
+          e('td',null,a?e('span',{className:'badge '+(isAl?'balert':'bpub')},isAl?'⚠ Alerta':'Atribuído'):e('span',{className:'badge bfree'},'Livre')),
+          e('td',{style:{fontSize:12}},a?(p?.name||a.serviceGroup||'—')+(a.assignedAt?' ('+fmt(a.assignedAt)+')':''):'—'),
+          e('td',{style:{fontSize:12}},fmt(dMap.last[t.id])),
+          e('td',{style:{textAlign:'center',fontSize:13}},cnt||'—'),
+          e('td',{style:{textAlign:'center',fontSize:13}},avgW||'—')
+        );
       }))
     ))
   );
 }
+
 
 function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
   const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState('');
   const now=Date.now();
   const SIX_M=weeksMs(26),WARN_M=weeksMs(20);
   const aMap=useMemo(()=>{const m={};AS.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[AS]);
+
+  const lastWorkedMap=useMemo(()=>{
+    const m={};
+    AS.filter(a=>a.returnedAt).forEach(a=>{if(!m[a.territoryId]||a.returnedAt>m[a.territoryId])m[a.territoryId]=a.returnedAt;});
+    return m;
+  },[AS]);
 
   const statusOf=a=>{
     if(!a)return'free';
@@ -302,52 +417,76 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
     return'assigned';
   };
 
+  const monthsAgo=ms=>{
+    const months=(now-ms)/(30.44*24*3600000);
+    return months<1?'menos de 1 mês':months.toFixed(1)+' meses atrás';
+  };
+
   const filtered=useMemo(()=>{
+    const q=search.toLowerCase();
     let l=T;
-    if(search)l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(search.toLowerCase()));
+    if(q){
+      const matchedPubTids=new Set();
+      if(q){AS.filter(a=>!a.returnedAt).forEach(a=>{const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;if(p&&(p.name.toLowerCase().includes(q)||( p.serviceGroup||'').toLowerCase().includes(q)))matchedPubTids.add(a.territoryId);if(a.serviceGroup&&a.serviceGroup.toLowerCase().includes(q))matchedPubTids.add(a.territoryId);});}
+      l=l.filter(t=>(t.num+' '+t.name).toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q)||matchedPubTids.has(t.id));
+    }
     if(fCat)l=l.filter(t=>t.category===fCat);
     if(fStatus==='free')l=l.filter(t=>!aMap[t.id]);
     if(fStatus==='assigned')l=l.filter(t=>!!aMap[t.id]);
     if(fStatus==='soon')l=l.filter(t=>statusOf(aMap[t.id])==='soon');
     if(fStatus==='late')l=l.filter(t=>statusOf(aMap[t.id])==='late');
     return l;
-  },[T,search,fCat,fStatus,aMap,now]);
+  },[T,search,fCat,fStatus,aMap,P,AS]);
 
-  const grouped=useMemo(()=>{const g={};filtered.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});return g;},[filtered]);
+  const grouped=useMemo(()=>{
+    const g={};
+    let list=[...filtered];
+    if(fStatus==='free'){
+      list.sort((a,b)=>{
+        const la=lastWorkedMap[a.id]||0,lb=lastWorkedMap[b.id]||0;
+        return la-lb;
+      });
+    } else {
+      list.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name));
+    }
+    list.forEach(t=>{const c=t.category||'Sem categoria';if(!g[c])g[c]=[];g[c].push(t);});
+    return g;
+  },[filtered,fStatus,lastWorkedMap]);
 
   const counts={free:T.filter(t=>!aMap[t.id]).length,assigned:T.filter(t=>!!aMap[t.id]).length,soon:T.filter(t=>statusOf(aMap[t.id])==='soon').length,late:T.filter(t=>statusOf(aMap[t.id])==='late').length};
 
-  const StatusFilters=[
-    ['','Todos',''],
-    ['free','Livres ('+counts.free+')','bfree'],
-    ['assigned','Atribuídos ('+counts.assigned+')','bpub'],
-    ['soon','A expirar ('+counts.soon+')','bamber'],
-    ['late','Atrasados ('+counts.late+')','balert'],
-  ];
+  const catColors=cfg.categoryColors||{};
 
   return e('div',null,
     e('div',{className:'rb',style:{marginBottom:10}},
-      e('input',{placeholder:'Pesquisar...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
+      e('input',{placeholder:'Pesquisar nome, categoria, publicador ou grupo...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
       e('button',{className:'btn btnp sm',onClick:onAdd},'+  Território')
     ),
     e('div',{style:{marginBottom:6,display:'flex',flexWrap:'wrap',gap:3}},
-      StatusFilters.map(([k,l,cl])=>e('span',{key:k,className:'chip'+(fStatus===k?' sel':''),onClick:()=>setFStatus(k)},l))
+      [['','Todos',''],['free','Livres ('+counts.free+')','bfree'],['assigned','Atribuídos ('+counts.assigned+')','bpub'],['soon','A expirar ('+counts.soon+')','bamber'],['late','Atrasados ('+counts.late+')','balert']].map(([k,l])=>
+        e('span',{key:k,className:'chip'+(fStatus===k?' sel':''),onClick:()=>setFStatus(k)},l)
+      )
     ),
     cfg.categories.length>0&&e('div',{style:{marginBottom:10,display:'flex',flexWrap:'wrap',gap:3}},
       e('span',{className:'chip'+(fCat===''?' sel':''),onClick:()=>setFCat('')},'Todas as categorias'),
-      ...cfg.categories.map(c=>e('span',{key:c,className:'chip'+(fCat===c?' sel':''),onClick:()=>setFCat(c===fCat?'':c)},c))
+      ...cfg.categories.map(c=>e('span',{key:c,className:'chip'+(fCat===c?' sel':''),style:catColors[c]&&fCat!==c?{background:catColors[c],borderColor:catColors[c]}:{},onClick:()=>setFCat(c===fCat?'':c)},c))
     ),
     Object.keys(grouped).length===0&&e('div',{className:'empty'},'Nenhum território.'),
     Object.entries(grouped).map(([cat,terrs])=>e('div',{key:cat},
-      e('div',{className:'ch'},cat+' ('+terrs.length+')'),
-      terrs.sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name)).map(t=>{
+      e('div',{className:'ch',style:catColors[cat]?{borderBottomColor:catColors[cat],color:'var(--text2)'}:{}},
+        catColors[cat]&&e('span',{style:{display:'inline-block',width:8,height:8,borderRadius:2,background:catColors[cat],marginRight:6}}),
+        cat+' ('+terrs.length+')'
+      ),
+      terrs.map(t=>{
         const a=aMap[t.id];
         const st=statusOf(a);
         const pub=a?.publisherId?P.find(x=>x.id===a.publisherId):null;
         const daysAssigned=a?Math.floor((now-a.assignedAt)/86400000):0;
         const daysLeft=182-daysAssigned;
+        const lastW=lastWorkedMap[t.id];
         const addrCnt=A.filter(x=>x.territoryId===t.id).length;
-        return e('div',{key:t.id,className:'card tap',onClick:()=>onOpen(t)},
+        const catColor=catColors[cat]||catColors[t.category]||'';
+        return e('div',{key:t.id,className:'card tap',style:catColor?{borderLeft:'3px solid '+catColor}:{},onClick:()=>onOpen(t)},
           e('div',{className:'rb'},
             e('div',{style:{flex:1}},
               e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),
@@ -366,6 +505,10 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
               ? e('span',{style:{color:'var(--red)',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso')
               : e('span',{style:{color:st==='soon'?'#92400e':'var(--text2)',fontWeight:st==='soon'?600:400}},daysLeft>0?daysLeft+' dias restantes':'Hoje expira')
           ),
+          !a&&lastW&&e('div',{style:{marginTop:5,fontSize:12,color:'var(--text2)'}},
+            'Trabalhado em: ',fmt(lastW),' (',monthsAgo(lastW),')'
+          ),
+          !a&&!lastW&&e('div',{style:{marginTop:5,fontSize:12,color:'var(--red)',fontWeight:500}},'Nunca trabalhado'),
           a&&(a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg)))
         );
       })
@@ -709,13 +852,35 @@ function AddressLogSection({A,AL,fromMs,toMs}){
   );
 }
 
-function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp}){
-  const Block=({items,onAdd,onDel,label,btn,bg})=>e('div',{style:{marginBottom:20}},e('div',{className:'rb',style:{marginBottom:10}},e('span',{style:{fontWeight:700,fontSize:15}},label),e('button',{className:'btn sm',onClick:onAdd},btn)),items.length===0&&e('div',{style:{fontSize:14,color:'var(--text2)'}},'Nenhum ainda.'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:7}},items.map(c=>e('div',{key:c,style:{display:'flex',alignItems:'center',gap:6,background:bg||'var(--bg2)',borderRadius:'var(--rsm)',padding:'7px 12px',border:'.5px solid var(--bd)'}},e('span',{style:{fontSize:14}},c),e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:16},onClick:()=>onDel(c)},'×')))));
+function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onSetColor}){
+  const COLORS=['#e2e8f0','#bfdbfe','#bbf7d0','#fde68a','#fecaca','#ddd6fe','#fbcfe8','#fed7aa','#a5f3fc','#d9f99d'];
+  const ColorPicker=({item,colorMap,type})=>{
+    const [open,setOpen]=useState(false);
+    const cur=colorMap[item]||'';
+    return e('div',{style:{position:'relative',display:'inline-block'}},
+      e('div',{onClick:()=>setOpen(v=>!v),style:{width:20,height:20,borderRadius:4,background:cur||'var(--bg3)',border:'.5px solid var(--bd2)',cursor:'pointer',flexShrink:0}}),
+      open&&e('div',{style:{position:'absolute',top:24,left:0,zIndex:10,background:'var(--bg)',border:'.5px solid var(--bd2)',borderRadius:'var(--rsm)',padding:8,display:'flex',flexWrap:'wrap',gap:5,width:140,boxShadow:'0 4px 12px rgba(0,0,0,.15)'}},
+        e('div',{onClick:()=>{onSetColor(type,item,'');setOpen(false);},style:{width:20,height:20,borderRadius:4,border:'.5px solid var(--bd2)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'var(--text2)'}},'✕'),
+        COLORS.map(c=>e('div',{key:c,onClick:()=>{onSetColor(type,item,c);setOpen(false);},style:{width:20,height:20,borderRadius:4,background:c,cursor:'pointer',border:cur===c?'2px solid var(--acc)':'.5px solid var(--bd)'}}))
+      )
+    );
+  };
+  const Block=({items,colorMap,type,onAdd,onDel,label,btn})=>e('div',{style:{marginBottom:20}},
+    e('div',{className:'rb',style:{marginBottom:10}},e('span',{style:{fontWeight:700,fontSize:15}},label),e('button',{className:'btn sm',onClick:onAdd},btn)),
+    items.length===0&&e('div',{style:{fontSize:14,color:'var(--text2)'}},'Nenhum ainda.'),
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:7}},items.map(c=>
+      e('div',{key:c,style:{display:'flex',alignItems:'center',gap:6,background:colorMap[c]||'var(--bg2)',borderRadius:'var(--rsm)',padding:'7px 12px',border:'.5px solid var(--bd)'}},
+        e(ColorPicker,{item:c,colorMap,type}),
+        e('span',{style:{fontSize:14}},c),
+        e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:16},onClick:()=>onDel(c)},'×')
+      )
+    ))
+  );
   return e('div',null,
     e('div',{style:{background:'var(--bg2)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:16,border:'.5px solid var(--bd)'}},e('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:2}},'Sessão iniciada como'),e('div',{style:{fontWeight:600}},user?.email)),
-    e(Block,{items:cfg.categories,onAdd:onAddCat,onDel:onDelCat,label:'Categorias de território',btn:'+ Categoria'}),
+    e(Block,{items:cfg.categories,colorMap:cfg.categoryColors||{},type:'category',onAdd:onAddCat,onDel:onDelCat,label:'Categorias de território',btn:'+ Categoria'}),
     e('div',{className:'sep'}),
-    e(Block,{items:cfg.campaigns,onAdd:onAddCamp,onDel:onDelCamp,label:'Campanhas / Tags',btn:'+ Campanha',bg:'#fffbeb'}),
+    e(Block,{items:cfg.campaigns,colorMap:cfg.campaignColors||{},type:'campaign',onAdd:onAddCamp,onDel:onDelCamp,label:'Campanhas / Tags',btn:'+ Campanha'}),
   );
 }
 
@@ -781,7 +946,7 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAdd
         e('div',{className:'fg'},e('label',{className:'lbl'},'Atribuir a'),e('div',{style:{display:'flex',gap:7,marginBottom:10}},e('button',{className:'tog'+(form.assignTo==='publisher'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'publisher',publisherId:'',serviceGroup:''}))},'👤 Publicador'),e('button',{className:'tog'+(form.assignTo==='group'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'group',publisherId:''}))},'👥 Grupo')),form.assignTo==='publisher'&&e(PublisherSearch,{publishers:P,value:form.publisherId||'',onChange:id=>setForm(f=>({...f,publisherId:id}))}),form.assignTo==='group'&&e('select',{value:form.serviceGroup||'',onChange:set('serviceGroup')},e('option',{value:''},'Selecionar grupo...'),...svcGroups.map(g=>e('option',{key:g,value:g},g)))),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||'',onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Opcional — preenche se já foi devolvido')),
-        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),onClick:()=>toggleTag(c)},c)))),
+        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>{const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Notas'),e('input',{placeholder:'Opcional...',value:form.notes||'',onChange:set('notes')})),
         e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>{const tid=modal.territoryId||form.territoryId;const ok=form.assignTo==='publisher'?form.publisherId:form.serviceGroup;if(tid&&ok)addAssignment({...form,territoryId:tid});}},'Atribuir'))
       );
@@ -797,7 +962,7 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,addAddress,deleteAdd
         ),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||'',onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Deixa vazio se ainda não foi devolvido')),
-        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),onClick:()=>toggleTag(c)},c)))),
+        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>{const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
         e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.assignedDate&&editAssignment(a.id,form)},'Guardar'))
       );
     }
