@@ -53,9 +53,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .bH{background:#dbeafe;color:#1e40af}.bM{background:#fce7f3;color:#9d174d}.bC{background:#dcfce7;color:#166534}
 .bcat{background:var(--bg2);color:var(--text2);font-size:12px;padding:3px 8px;border-radius:20px}
 .btag{background:#fef3c7;color:var(--amber);font-size:11px;padding:2px 8px;border-radius:20px}
-.bpub{background:#fde68a;color:var(--amber)}
-.bfree{background:#bbf7d0;color:var(--green)}
-.balert{background:var(--redbg);color:var(--red)}
+.bpub{background:#3E74ED;color:#fff}
+.bfree{background:#1a1a1a;color:#F9A219;border:.5px solid #F9A219}
+.balert{background:#FF4C00;color:#fff}
+.bunworked{background:#FF4C00;color:#fff}
 .bamber{background:#fef3c7;color:#92400e}
 .chip{padding:7px 13px;border-radius:20px;border:.5px solid var(--bd2);cursor:pointer;font-size:13px;display:inline-block;margin:3px}
 .chip.sel{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
@@ -77,7 +78,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .kpi-cell{background:var(--bg);padding:10px 12px}
 .kpi-lbl{font-size:11px;color:var(--text2);margin-bottom:3px}
 .kpi-val{font-size:17px;font-weight:700}
-.kv-b{color:#2563eb}.kv-r{color:var(--red)}.kv-g{color:var(--green)}
+.kv-b{color:#3E74ED}.kv-r{color:#FF4C00}.kv-g{color:#F9A219}
 .charts-row{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
 @media(min-width:420px){.charts-row{grid-template-columns:repeat(3,1fr)}}
 .chart-box{background:var(--bg);border:.5px solid var(--bd);border-radius:var(--r);padding:12px}
@@ -810,6 +811,84 @@ function ReportsView({T,A,AL,P,AS,cfg}){
   const addedInScope=logsInScope.filter(l=>l.action==='add').length;
   const removedInScope=logsInScope.filter(l=>l.action==='delete').length;
 
+  const generatePDF=()=>{
+    const filters=[];
+    if(selCats.length>0)filters.push('Categorias: '+selCats.join(', '));
+    if(selTags.length>0)filters.push('Campanhas: '+selTags.join(', '));
+    if(selGroups.length>0)filters.push('Grupos: '+selGroups.join(', '));
+    const statusList=[];
+    if(showWorked)statusList.push('Trabalhados');if(showAssigned)statusList.push('Em mãos');if(showUnworked)statusList.push('Não trabalhados');if(showLate)statusList.push('Em atraso');
+    if(statusList.length<4)filters.push('Estado: '+statusList.join(', '));
+
+    const rows=results.map(({t,isWorked,isAssigned,isUnworked,isLate,activeA,pub,doneInRange})=>{
+      const status=isLate?'⚠ Em atraso':isWorked?'✓ Concluído':isAssigned?'Em mãos':'Não trabalhado';
+      const who=activeA?(pub?.name||activeA.serviceGroup||'Grupo'):'—';
+      const since=activeA?fmt(activeA.assignedAt):'—';
+      const tags=(activeA?.tags||[]).join(', ')||'—';
+      return{num:t.num||'',name:t.name,cat:t.category||'',status,who,since,tags,done:doneInRange.length};
+    });
+
+    const cols=[{k:'num',l:'Nº',w:30},{k:'name',l:'Território',w:120},{k:'cat',l:'Categoria',w:70},{k:'status',l:'Estado',w:80},{k:'who',l:'Publicador/Grupo',w:110},{k:'since',l:'Desde',w:55},{k:'done',l:'Concl.',w:30},{k:'tags',l:'Campanhas',w:80}];
+
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;font-size:11px;color:#111;padding:32px 36px;background:#fff}
+.header{margin-bottom:24px;border-bottom:2px solid #111;padding-bottom:14px}
+h1{font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:4px}
+.meta{font-size:10px;color:#666;line-height:1.6}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.kpi{background:#f8f8f8;border-radius:8px;padding:10px 12px}
+.kpi-v{font-size:20px;font-weight:600}
+.kpi-l{font-size:9px;color:#666;margin-top:2px}
+.kv-b{color:#3E74ED}.kv-g{color:#F9A219}.kv-r{color:#FF4C00}
+table{width:100%;border-collapse:collapse;font-size:10px}
+th{background:#111;color:#fff;font-weight:500;padding:7px 8px;text-align:left;font-size:9px;letter-spacing:.04em}
+td{padding:6px 8px;border-bottom:.5px solid #e5e5e5;vertical-align:middle}
+tr:nth-child(even) td{background:#fafafa}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:500}
+.b-done{background:#FFF4DC;color:#c47f00}
+.b-active{background:#DCE9FF;color:#1a4fa8}
+.b-late{background:#FFE8E0;color:#b83000}
+.b-none{background:#f0f0f0;color:#555}
+.footer{margin-top:20px;font-size:9px;color:#aaa;text-align:right}
+</style></head><body>
+<div class="header">
+  <h1>Relatório de Territórios</h1>
+  <div class="meta">
+    Período: ${dateFrom} → ${dateTo}<br>
+    ${filters.length>0?'Filtros: '+filters.join(' · ')+'<br>':''}
+    Gerado em: ${new Date().toLocaleString('pt-PT')}
+  </div>
+</div>
+<div class="kpis">
+  <div class="kpi"><div class="kpi-v">${summary.total}</div><div class="kpi-l">Total de territórios</div></div>
+  <div class="kpi"><div class="kpi-v kv-g">${summary.worked} (${summary.workedPct}%)</div><div class="kpi-l">Concluídos no período</div></div>
+  <div class="kpi"><div class="kpi-v kv-b">${summary.assigned}</div><div class="kpi-l">Em mãos</div></div>
+  <div class="kpi"><div class="kpi-v kv-r">${summary.unworked}</div><div class="kpi-l">Não trabalhados</div></div>
+  <div class="kpi"><div class="kpi-v kv-r">${summary.late}</div><div class="kpi-l">Em atraso</div></div>
+  <div class="kpi"><div class="kpi-v">${addrsInScope.length}</div><div class="kpi-l">Moradas</div></div>
+  <div class="kpi"><div class="kpi-v kv-g">+${addedInScope}</div><div class="kpi-l">Moradas adicionadas</div></div>
+  <div class="kpi"><div class="kpi-v kv-r">-${removedInScope}</div><div class="kpi-l">Moradas removidas</div></div>
+</div>
+<table>
+<thead><tr>${cols.map(c=>'<th style="width:'+c.w+'px">'+c.l+'</th>').join('')}</tr></thead>
+<tbody>
+${rows.map(r=>{
+  const bc=r.status.includes('Concluído')?'b-done':r.status.includes('mãos')?'b-active':r.status.includes('atraso')?'b-late':'b-none';
+  return'<tr><td>'+r.num+'</td><td><strong>'+r.name+'</strong></td><td>'+r.cat+'</td><td><span class="badge '+bc+'">'+r.status+'</span></td><td>'+r.who+'</td><td>'+r.since+'</td><td>'+( r.done||'—')+'</td><td>'+r.tags+'</td></tr>';
+}).join('')}
+</tbody></table>
+<div class="footer">Gestão de Territórios · ${rows.length} territórios listados</div>
+</body></html>`;
+
+    const w=window.open('','_blank','width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>w.print(),800);
+  };
+
   const ChipGroup=({label,items,sel,onToggle,color})=>items.length===0?null:e('div',{style:{marginBottom:10}},
     e('div',{className:'lbl'},label),
     e('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
@@ -825,7 +904,10 @@ function ReportsView({T,A,AL,P,AS,cfg}){
   );
 
   return e('div',null,
-    e('div',{style:{fontWeight:700,fontSize:17,marginBottom:14}},'Relatórios'),
+    e('div',{className:'rb',style:{marginBottom:14}},
+      e('span',{style:{fontWeight:700,fontSize:17}},'Relatórios'),
+      e('button',{className:'btn sm',style:{gap:5,fontSize:12},onClick:generatePDF},'⬇ Exportar PDF')
+    ),
 
     e('div',{className:'card',style:{marginBottom:10}},
       e('div',{style:{fontWeight:600,fontSize:14,marginBottom:10}},'Período'),
