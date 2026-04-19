@@ -551,7 +551,7 @@ function PastAssignments({pastA,P,onDelete,onEdit}){
 }
 
 function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onEditAddr,onDelete,onAssign,onReturn,onEdit,onDeleteLog,onDeleteAssignment,onAddAddrCat,onDelAddrCat,onAddAddrModal}){
-  const [showLog,setShowLog]=useState(false),[copied,setCopied]=useState(false),[newCat,setNewCat]=useState('');
+  const [showLog,setShowLog]=useState(false),[copied,setCopied]=useState(false),[newCat,setNewCat]=useState(''),[filterAddrCat,setFilterAddrCat]=useState('');
   const addrs=A.filter(a=>a.territoryId===territory.id),logs=AL.filter(l=>l.territoryId===territory.id);
   const aA=AS.find(a=>a.territoryId===territory.id&&!a.returnedAt),pub=aA?.publisherId?P.find(p=>p.id===aA.publisherId):null;
   const isAl=aA&&aA.assignedAt<(Date.now()-weeksMs(26)),pastA=AS.filter(a=>a.territoryId===territory.id&&a.returnedAt);
@@ -639,16 +639,17 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onE
       )
     ),
 
-    addrs.length>0&&e('div',{style:{fontSize:11,color:'var(--text2)',marginBottom:10,padding:'4px 8px',background:'var(--bg2)',borderRadius:'var(--rsm)',display:'inline-block'}},
+    addrs.length>0&&e('div',{style:{fontSize:11,color:'var(--text2)',marginBottom:8,padding:'4px 8px',background:'var(--bg2)',borderRadius:'var(--rsm)',display:'inline-block'}},
       'Rua  ·  [Género]  ·  Última atualização'
     ),
 
-    e('div',{style:{marginBottom:12}},
-      e('div',{className:'row',style:{flexWrap:'wrap',gap:4,marginBottom:6}},
+    e('div',{style:{marginBottom:10}},
+      e('div',{style:{display:'flex',flexWrap:'wrap',gap:4,marginBottom:6,alignItems:'center'}},
         e('span',{style:{fontSize:12,color:'var(--text2)',marginRight:2}},'Categorias:'),
-        addressCategories.map(cat=>e('div',{key:cat,style:{display:'inline-flex',alignItems:'center',gap:4,background:'var(--bg2)',border:'.5px solid var(--bd)',borderRadius:'var(--rsm)',padding:'3px 8px',fontSize:12}},
-          e('span',null,cat),
-          e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:14},onClick:()=>onDelAddrCat(cat)},'×')
+        addressCategories.length>0&&e('span',{className:'chip'+(filterAddrCat===''?' sel':''),style:{margin:2,padding:'3px 9px',fontSize:12},onClick:()=>setFilterAddrCat('')},'Todas'),
+        addressCategories.map(cat=>e('div',{key:cat,style:{display:'inline-flex',alignItems:'center',gap:0,borderRadius:'var(--rsm)',overflow:'hidden',border:'.5px solid '+(filterAddrCat===cat?'var(--acc)':'var(--bd)'),background:filterAddrCat===cat?'var(--acc)':'var(--bg2)'}},
+          e('span',{style:{fontSize:12,padding:'3px 9px',cursor:'pointer',color:filterAddrCat===cat?'var(--acc-fg)':'var(--text)'},onClick:()=>setFilterAddrCat(filterAddrCat===cat?'':cat)},cat),
+          e('span',{style:{cursor:'pointer',color:filterAddrCat===cat?'var(--acc-fg)':'var(--text2)',fontSize:14,padding:'3px 6px 3px 0',lineHeight:1},onClick:e=>{e.stopPropagation();onDelAddrCat(cat);if(filterAddrCat===cat)setFilterAddrCat('');}  },'×')
         )),
         e('div',{style:{display:'inline-flex',alignItems:'center',gap:4}},
           e('input',{placeholder:'Nova categoria...',value:newCat,onChange:ev=>setNewCat(ev.target.value),onKeyDown:ev=>{if(ev.key==='Enter'&&newCat.trim()){onAddAddrCat(newCat.trim());setNewCat('');}},style:{fontSize:12,padding:'3px 8px',width:130,minHeight:'unset',height:28}}),
@@ -659,17 +660,17 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onE
 
     normal.length===0&&dnv.length===0&&e('div',{className:'empty'},'Sem moradas.'),
 
-    grouped.uncategorized.length>0&&e('div',null,
-      addressCategories.length>0&&e('div',{className:'ch'},'Geral ('+grouped.uncategorized.length+')'),
+    (filterAddrCat===''||filterAddrCat==='__geral')&&grouped.uncategorized.length>0&&e('div',null,
+      addressCategories.length>0&&e('div',{className:'ch',style:{cursor:'pointer'},onClick:()=>setFilterAddrCat(filterAddrCat==='__geral'?'':'__geral')},'Geral ('+grouped.uncategorized.length+')'),
       grouped.uncategorized.map(a=>e(AddrRow,{key:a.id,a}))
     ),
 
-    addressCategories.map(cat=>{
+    addressCategories.filter(cat=>filterAddrCat===''||filterAddrCat===cat).map(cat=>{
       const list=grouped.cats[cat]||[];
       return e('div',{key:cat,style:{marginTop:10}},
         e('div',{className:'rb',style:{marginBottom:4}},
-          e('div',{className:'ch',style:{flex:1,margin:0,padding:'4px 0',borderBottom:'none'}},cat+' ('+list.length+')'),
-          e('button',{className:'btn btnp sm',style:{minHeight:28,padding:'3px 8px',fontSize:12},onClick:()=>onAddAddrModal(cat)},'+')
+          e('div',{className:'ch',style:{flex:1,margin:0,padding:'4px 0',borderBottom:'none',cursor:'pointer'},onClick:()=>setFilterAddrCat(filterAddrCat===cat?'':cat)},cat+' ('+list.length+')'),
+          e('button',{className:'btn btnp sm',style:{minHeight:28,padding:'3px 10px',fontSize:12},onClick:e=>{e.stopPropagation();onAddAddrModal(cat);}},'+ Morada')
         ),
         e('div',{style:{borderTop:'.5px solid var(--bd)'}}),
         list.length===0&&e('div',{style:{fontSize:13,color:'var(--text2)',padding:'8px 0'}},'Sem moradas nesta categoria.'),
@@ -677,7 +678,7 @@ function TerritoryDetail({territory,A,AL,P,AS,cfg,onBack,onAddAddr,onDelAddr,onE
       );
     }),
 
-    dnv.length>0&&e('div',{className:'dnv-box',style:{marginTop:12}},
+    (filterAddrCat===''||filterAddrCat==='__dnv')&&dnv.length>0&&e('div',{className:'dnv-box',style:{marginTop:12}},
       e('div',{className:'dnv-title'},'🚫 Não visitar ('+dnv.length+')'),
       dnv.map(a=>e(AddrRow,{key:a.id,a,isDnv:true}))
     ),
