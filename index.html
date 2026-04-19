@@ -144,6 +144,7 @@ const fmt=d=>d?new Date(d).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-di
 const todayStr=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const msToDate=ms=>ms?new Date(ms).toISOString().split('T')[0]:'';
 const msToWeeks=ms=>Math.round(ms/(7*24*3600000));
+const msToDuration=ms=>{const days=Math.floor(ms/86400000);if(days<7)return days===1?'1 dia':days+' dias';const weeks=Math.round(ms/(7*24*3600000));return weeks===1?'1 sem.':weeks+' sem.';};
 const weeksMs=n=>n*7*24*3600000;
 const TL={H:'Homem',M:'Mulher',C:'Casal'};
 const TS=()=>firebase.firestore.FieldValue.serverTimestamp();
@@ -199,9 +200,21 @@ function App({user}){
       db.collection('publishers').onSnapshot(s=>{setP(s.docs.map(d=>({id:d.id,...d.data(),createdAt:tsMs(d.data().createdAt)||Date.now()})));chk('p');},e=>{console.warn('publishers',e);chk('p');}),
       db.collection('assignments').onSnapshot(s=>{setAS(s.docs.map(d=>({id:d.id,...d.data(),assignedAt:tsMs(d.data().assignedAt),returnedAt:tsMs(d.data().returnedAt)})));chk('as');},e=>{console.warn('assignments',e);chk('as');}),
       db.collection('config').doc('settings').onSnapshot(d=>{
-        const defaultCfg={categories:['Residencial','Comercial','Rural','Industrial'],campaigns:[],categoryColors:{},campaignColors:{}};
+        const defaultCfg={
+          categories:['Amarante','Baião','Felgueiras','Gaia','Gondomar','Lousada','Maia','Marco de Canaveses','Matosinhos','Paços de Ferreira','Paredes','Penafiel','Porto','Póvoa de Varzim','Santo Tirso','Trofa','Valongo','Vila do Conde'],
+          campaigns:[
+            {name:'C.Memorial | A.S.25',startDate:'',endDate:''},
+            {name:'C. Congresso - "Adoração Pura" | A.S.25',startDate:'',endDate:''},
+            {name:'C. Sentinela N.º1 2025 Um mundo sem guerra -Como? | A.S.26 / SET',startDate:'',endDate:''},
+            {name:'C.Memorial | A.S.26',startDate:'',endDate:''}
+          ],
+          categoryColors:{Amarante:'#A8D8F0',Baião:'#BFE3A8',Felgueiras:'#FFD3A8',Gaia:'#F4B6C2',Gondomar:'#FFE08A',Lousada:'#D4F5A6',Maia:'#D9D9D9','Marco de Canaveses':'#AEEBE3',Matosinhos:'#9FD3F2','Paços de Ferreira':'#E8C3A3',Paredes:'#F2BFA4',Penafiel:'#FFF3A3',Porto:'#B7C9E2','Póvoa de Varzim':'#F5E1B8','Santo Tirso':'#CDE7BE',Trofa:'#B8F2C2',Valongo:'#C8C8C8','Vila do Conde':'#C6E6FF'},
+          campaignColors:{'C.Memorial | A.S.25':'#E0D3C3','C. Congresso - "Adoração Pura" | A.S.25':'#AAD0C1','C. Sentinela N.º1 2025 Um mundo sem guerra -Como? | A.S.26 / SET':'#987A55','C.Memorial | A.S.26':'#A3A882'}
+        };
         const data=d.exists?d.data():defaultCfg;
-        const normalized={categories:Array.isArray(data.categories)?data.categories:defaultCfg.categories,campaigns:Array.isArray(data.campaigns)?data.campaigns:[],categoryColors:data.categoryColors||{},campaignColors:data.campaignColors||{}};
+        const rawCamps=Array.isArray(data.campaigns)?data.campaigns:defaultCfg.campaigns;
+        const normalizedCamps=rawCamps.map(c=>typeof c==='string'?{name:c,startDate:'',endDate:''}:c);
+        const normalized={categories:Array.isArray(data.categories)?data.categories:defaultCfg.categories,campaigns:normalizedCamps,categoryColors:data.categoryColors||{},campaignColors:data.campaignColors||{}};
         if(!d.exists)db.collection('config').doc('settings').set(normalized);
         cfgRef.current=normalized;
         setCfg(normalized);
@@ -228,9 +241,10 @@ function App({user}){
     delPublisher:async id=>{if(!confirm('Apagar?'))return;await db.collection('publishers').doc(id).delete();},
     addCategory:async name=>{const c=cfgRef.current;if(!name||c.categories.includes(name))return;await saveCfg({...c,categories:[...c.categories,name]});setModal(null);},
     delCategory:async name=>{if(!confirm('Apagar categoria?'))return;const c=cfgRef.current;await saveCfg({...c,categories:c.categories.filter(x=>x!==name)});},
-    addCampaign:async name=>{const c=cfgRef.current;if(!name||c.campaigns.includes(name))return;await saveCfg({...c,campaigns:[...c.campaigns,name]});setModal(null);},
-    delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>x!==name)});},
-    setColor:async(type,item,color)=>{const c=cfgRef.current;if(type==='category'){const cc={...c.categoryColors||{}};if(color)cc[item]=color;else delete cc[item];await saveCfg({...c,categoryColors:cc});}else{const cc={...c.campaignColors||{}};if(color)cc[item]=color;else delete cc[item];await saveCfg({...c,campaignColors:cc});}},
+    addCampaign:async f=>{const c=cfgRef.current;const name=f.name||f;if(!name||c.campaigns.some(x=>(x.name||x)===name))return;await saveCfg({...c,campaigns:[...c.campaigns,{name,startDate:f.startDate||'',endDate:f.endDate||''}]});setModal(null);},
+    delCampaign:async name=>{if(!confirm('Apagar campanha?'))return;const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.filter(x=>(x.name||x)!==name)});},
+    editCampaign:async(name,f)=>{const c=cfgRef.current;await saveCfg({...c,campaigns:c.campaigns.map(x=>(x.name||x)===name?{name:f.name||name,startDate:f.startDate||'',endDate:f.endDate||''}:x)});setModal(null);},
+    setColor:async(type,item,color)=>{const c=cfgRef.current;if(type==='category'){const cc={...c.categoryColors||{}};if(color)cc[item]=color;else delete cc[item];await saveCfg({...c,categoryColors:cc});}else{const cc={...c.campaignColors||{}};const k=item;if(color)cc[k]=color;else delete cc[k];await saveCfg({...c,campaignColors:cc});}},
     addAssignment:async f=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').add({territoryId:f.territoryId,publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null,tags:f.tags||[],assignedAt:aT,returnedAt:rT,weeksToComplete:wk,notes:f.notes||''});setModal(null);},
     editAssignment:async(id,f)=>{const aT=fromDate(f.assignedDate||todayStr());const rT=f.returnedDate?fromDate(f.returnedDate):null;const wk=(f.assignedDate&&f.returnedDate)?msToWeeks(new Date(f.returnedDate)-new Date(f.assignedDate)):null;await db.collection('assignments').doc(id).update({assignedAt:aT,returnedAt:rT,weeksToComplete:wk,tags:f.tags||[],publisherId:f.publisherId||null,serviceGroup:f.serviceGroup||null});setModal(null);},
     returnAssignment:async id=>{if(!confirm('Marcar como devolvido?'))return;const a=AS.find(x=>x.id===id);if(!a)return;const wk=a.assignedAt?msToWeeks(Date.now()-a.assignedAt):null;await db.collection('assignments').doc(id).update({returnedAt:TS(),weeksToComplete:wk});},
@@ -258,7 +272,7 @@ function App({user}){
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDelete:ops.deleteAssignment}),
       view==='reports'&&e(ReportsView,{T,A,AL,P,AS,cfg}),
-      view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign,onSetColor:ops.setColor,onSaveCfg:async s=>{const c=cfgRef.current;await saveCfg({...c,...s});}})
+      view==='settings'&&e(SettingsView,{cfg,user,onAddCat:()=>setModal('add-category'),onDelCat:ops.delCategory,onAddCamp:()=>setModal('add-campaign'),onDelCamp:ops.delCampaign,onEditCamp:camp=>setModal({type:'edit-campaign',campaign:camp}),onSetColor:ops.setColor,onSaveCfg:async s=>{const c=cfgRef.current;await saveCfg({...c,...s});}})
     ),
     e('nav',{className:'nav'},navs.map(n=>e('button',{key:n.k,className:'nb'+(view===n.k||view==='terr-detail'&&n.k==='territories'?' act':''),onClick:()=>navTo(n.k)},
       n.k==='assignments'&&stats.alerts.length>0&&e('span',{className:'nb-badge'},stats.alerts.length),
@@ -331,7 +345,7 @@ function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
   return e('div',null,
     dynStats.alerts.length>0&&e('div',{className:'alert-box'},
       e('div',{className:'alert-title'},'⚠ '+dynStats.alerts.length+' território(s) há mais de 6 meses'),
-      dynStats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToWeeks(now-a.assignedAt)+'sem'),e('button',{className:'btn btnd sm',onClick:onGoAS},'Ver'));}),
+      dynStats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToDuration(now-a.assignedAt)),e('button',{className:'btn btnd sm',onClick:onGoAS},'Ver'));}),
       dynStats.alerts.length>3&&e('div',{style:{fontSize:12,color:'var(--red)',paddingTop:4}},'+'+( dynStats.alerts.length-3)+' mais')
     ),
 
@@ -352,7 +366,7 @@ function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
       cfg.campaigns.length>0&&e('div',null,
         e('div',{className:'lbl',style:{marginBottom:5}},'Campanhas'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},
-          ...cfg.campaigns.map(c=>{const cc=campColors[c]||'';return e('span',{key:c,className:'chip'+(selCamp.includes(c)?' sel':''),style:cc&&!selCamp.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleCamp(c)},c);})
+          ...cfg.campaigns.map(camp=>{const c=camp.name||camp;const cc=campColors[c]||'';return e('span',{key:c,className:'chip'+(selCamp.includes(c)?' sel':''),style:cc&&!selCamp.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleCamp(c)},c);})
         )
       )
     ),
@@ -493,7 +507,8 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
         const lastW=lastWorkedMap[t.id];
         const addrCnt=A.filter(x=>x.territoryId===t.id).length;
         const catColor=catColors[cat]||catColors[t.category]||'';
-        return e('div',{key:t.id,className:'card tap',style:catColor?{borderLeft:'3px solid '+catColor}:{},onClick:()=>onOpen(t)},
+        const cardBorder=st==='late'?{border:'1.5px solid #FF4C00',background:'#fff8f7'}:st==='soon'?{border:'1.5px solid #F9A219',background:'#fffdf0'}:catColor?{borderLeft:'3px solid '+catColor}:{};
+        return e('div',{key:t.id,className:'card tap',style:cardBorder,onClick:()=>onOpen(t)},
           e('div',{className:'rb'},
             e('div',{style:{flex:1}},
               e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),
@@ -509,8 +524,8 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
           a&&e('div',{style:{marginTop:6,fontSize:12,color:'var(--text2)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:4}},
             e('span',null,pub?.name||a.serviceGroup||'Grupo',' · desde ',fmt(a.assignedAt)),
             st==='late'
-              ? e('span',{style:{color:'var(--red)',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso')
-              : e('span',{style:{color:st==='soon'?'#92400e':'var(--text2)',fontWeight:st==='soon'?600:400}},daysLeft>0?daysLeft+' dias restantes':'Hoje expira')
+              ? e('span',{style:{color:'#FF4C00',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso')
+              : e('span',{style:{color:st==='soon'?'#F9A219':'var(--text2)',fontWeight:st==='soon'?600:400}},daysLeft>0?daysLeft+' dias restantes':'Hoje expira')
           ),
           !a&&lastW&&e('div',{style:{marginTop:5,fontSize:12,color:'var(--text2)'}},
             'Trabalhado em: ',fmt(lastW),' (',monthsAgo(lastW),')'
@@ -735,10 +750,10 @@ function AssignmentsView({T,P,AS,stats,onAdd,onReturn,onOpen,onEdit,onDelete}){
       tags.length>0&&e('div',null,e('span',{style:{fontSize:12,color:'var(--text2)',marginRight:4}},'Campanha:'),e('span',{className:'chip'+(fT===''?' sel':''),onClick:()=>setFT('')},'Todas'),...tags.map(t=>e('span',{key:t,className:'chip'+(fT===t?' sel':''),onClick:()=>setFT(t===fT?'':t)},t)))
     ),
     list.length===0&&e('div',{className:'empty'},'Nenhuma atribuição.'),
-    list.map(a=>{const t=T.find(x=>x.id===a.territoryId),p=a.publisherId?P.find(x=>x.id===a.publisherId):null;const isAl=!a.returnedAt&&a.assignedAt<(now-weeksMs(26)),wk=a.returnedAt?a.weeksToComplete:msToWeeks(now-a.assignedAt);
+    list.map(a=>{const t=T.find(x=>x.id===a.territoryId),p=a.publisherId?P.find(x=>x.id===a.publisherId):null;const isAl=!a.returnedAt&&a.assignedAt<(now-weeksMs(26)),wk=a.returnedAt?(a.weeksToComplete?a.weeksToComplete+' sem.':null):msToDuration(now-a.assignedAt);
       return e('div',{key:a.id,className:'card'},
         e('div',{className:'rb'},e('div',{style:{flex:1}},e('div',{style:{fontWeight:600,cursor:'pointer'},onClick:()=>t&&onOpen(t)},t?(t.num?t.num+' · ':'')+t.name:'—'),e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:2}},p?.name||a.serviceGroup||'Grupo',' · ',fmt(a.assignedAt),a.returnedAt?' → '+fmt(a.returnedAt):'')),
-          e('div',{className:'row',style:{gap:5}},isAl&&e('span',{className:'badge balert'},'⚠ '+wk+'sem'),!isAl&&wk&&e('span',{style:{fontSize:12,color:'var(--text2)'}},wk+'sem'),e('button',{className:'btn sm',style:{fontSize:12},onClick:()=>onEdit(a)},'Editar'),!a.returnedAt&&e('button',{className:'btn sm',onClick:()=>onReturn(a.id)},'Devolver'),e('button',{className:'btn btnd sm',style:{minHeight:30,padding:'4px 8px'},title:'Apagar registo',onClick:()=>onDelete(a.id)},'×'))),
+          e('div',{className:'row',style:{gap:5}},isAl&&e('span',{className:'badge balert'},'⚠ '+wk),!isAl&&wk&&e('span',{style:{fontSize:12,color:'var(--text2)'}},wk),e('button',{className:'btn sm',style:{fontSize:12},onClick:()=>onEdit(a)},'Editar'),!a.returnedAt&&e('button',{className:'btn sm',onClick:()=>onReturn(a.id)},'Devolver'),e('button',{className:'btn btnd sm',style:{minHeight:30,padding:'4px 8px'},title:'Apagar registo',onClick:()=>onDelete(a.id)},'×'))),
         (a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg))),
         a.notes&&e('div',{style:{fontSize:13,color:'var(--text2)',marginTop:5}},a.notes)
       );
@@ -1024,7 +1039,7 @@ function AddressLogSection({A,AL,fromMs,toMs}){
   );
 }
 
-function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onSetColor,onSaveCfg}){
+function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onEditCamp,onSetColor,onSaveCfg}){
   const ColorPicker=({item,colorMap,type})=>{
     const [open,setOpen]=useState(false);
     const [hex,setHex]=useState('');
@@ -1058,6 +1073,24 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onSetColor
       )
     ))
   );
+  const CampaignBlock=({campaigns,colorMap,onAdd,onDel,onEdit})=>e('div',{style:{marginBottom:20}},
+    e('div',{className:'rb',style:{marginBottom:10}},e('span',{style:{fontWeight:700,fontSize:15}},'Campanhas / Tags'),e('button',{className:'btn sm',onClick:onAdd},'+ Campanha')),
+    campaigns.length===0&&e('div',{style:{fontSize:14,color:'var(--text2)'}},'Nenhuma ainda.'),
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:7}},campaigns.map(camp=>{
+      const name=camp.name||camp;
+      const cc=colorMap[name]||'';
+      return e('div',{key:name,style:{display:'flex',alignItems:'center',gap:4,background:cc||'var(--bg2)',borderRadius:'var(--rsm)',padding:'7px 12px',border:'.5px solid var(--bd)'}},
+        e(ColorPicker,{item:name,colorMap,type:'campaign'}),
+        e('div',{style:{flex:1,minWidth:0}},
+          e('div',{style:{fontSize:13,fontWeight:500}},name),
+          (camp.startDate||camp.endDate)&&e('div',{style:{fontSize:11,color:'var(--text2)',marginTop:1}},(camp.startDate?'Início: '+camp.startDate:'')+(camp.startDate&&camp.endDate?' · ':'')+(camp.endDate?'Fim: '+camp.endDate:''))
+        ),
+        e('button',{className:'btn sm',style:{minHeight:26,padding:'2px 8px',fontSize:12},onClick:()=>onEdit(camp)},'✏'),
+        e('span',{style:{cursor:'pointer',color:'var(--text2)',fontSize:16,lineHeight:1},onClick:()=>onDel(name)},'×')
+      );
+    }))
+  );
+
   const exportSettings=()=>{
     const data=JSON.stringify({categories:cfg.categories,campaigns:cfg.campaigns,categoryColors:cfg.categoryColors||{},campaignColors:cfg.campaignColors||{}},null,2);
     const blob=new Blob([data],{type:'application/json'});
@@ -1086,7 +1119,7 @@ function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onSetColor
     e('div',{style:{background:'var(--bg2)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:16,border:'.5px solid var(--bd)'}},e('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:2}},'Sessão iniciada como'),e('div',{style:{fontWeight:600}},user?.email)),
     e(Block,{items:cfg.categories,colorMap:cfg.categoryColors||{},type:'category',onAdd:onAddCat,onDel:onDelCat,label:'Categorias de território',btn:'+ Categoria'}),
     e('div',{className:'sep'}),
-    e(Block,{items:cfg.campaigns,colorMap:cfg.campaignColors||{},type:'campaign',onAdd:onAddCamp,onDel:onDelCamp,label:'Campanhas / Tags',btn:'+ Campanha'}),
+    e(CampaignBlock,{campaigns:cfg.campaigns,colorMap:cfg.campaignColors||{},onAdd:onAddCamp,onDel:onDelCamp,onEdit:onEditCamp}),
     e('div',{className:'sep'}),
     e('div',null,
       e('div',{style:{fontWeight:700,fontSize:15,marginBottom:10}},'Cópia de segurança'),
@@ -1120,9 +1153,10 @@ function PublisherSearch({publishers,value,onChange}){
   );
 }
 
-function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAddress,deleteAddress,editAddress,addPublisher,addCategory,addCampaign,addAssignment,editAssignment}){
+function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAddress,deleteAddress,editAddress,addPublisher,addCategory,addCampaign,editCampaign,addAssignment,editAssignment}){
   const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||'',publisherId:a.publisherId||'',serviceGroup:a.serviceGroup||''};} if(modal?.type==='edit-address'){const a=modal.addr;return{text:a.text,type:a.type,notes:a.notes||'',doNotVisit:a.doNotVisit||false,addrCategory:a.addrCategory||'',date:msToDate(a.date||a.createdAt)};}
- if(modal?.type==='edit-territory'){const t=modal.territory;return{num:t.num||'',name:t.name,category:t.category||'',mapsLink:t.mapsLink||''};} return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher',doNotVisit:false,addrCategory:modal?.defaultCat||''};};
+ if(modal?.type==='edit-territory'){const t=modal.territory;return{num:t.num||'',name:t.name,category:t.category||'',mapsLink:t.mapsLink||''};} if(modal?.type==='edit-campaign'){const c=modal.campaign;return{name:c.name||c,startDate:c.startDate||'',endDate:c.endDate||''};}
+ return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher',doNotVisit:false,addrCategory:modal?.defaultCat||''};};
   const [form,setForm]=useState(init);
   const set=k=>ev=>setForm(f=>({...f,[k]:ev.target.value}));
   const toggleTag=tag=>setForm(f=>({...f,tags:f.tags.includes(tag)?f.tags.filter(x=>x!==tag):[...f.tags,tag]}));
@@ -1189,7 +1223,7 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAdd
         e('div',{className:'fg'},e('label',{className:'lbl'},'Atribuir a'),e('div',{style:{display:'flex',gap:7,marginBottom:10}},e('button',{className:'tog'+(form.assignTo==='publisher'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'publisher',publisherId:'',serviceGroup:''}))},'👤 Publicador'),e('button',{className:'tog'+(form.assignTo==='group'?' on':''),onClick:()=>setForm(f=>({...f,assignTo:'group',publisherId:''}))},'👥 Grupo')),form.assignTo==='publisher'&&e(PublisherSearch,{publishers:P,value:form.publisherId||'',onChange:id=>setForm(f=>({...f,publisherId:id}))}),form.assignTo==='group'&&e('select',{value:form.serviceGroup||'',onChange:set('serviceGroup')},e('option',{value:''},'Selecionar grupo...'),...svcGroups.map(g=>e('option',{key:g,value:g},g)))),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||'',onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Opcional — preenche se já foi devolvido')),
-        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>{const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
+        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(camp=>{const c=camp.name||camp;const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Notas'),e('input',{placeholder:'Opcional...',value:form.notes||'',onChange:set('notes')})),
         e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>{const tid=modal.territoryId||form.territoryId;const ok=form.assignTo==='publisher'?form.publisherId:form.serviceGroup;if(tid&&ok)addAssignment({...form,territoryId:tid});}},'Atribuir'))
       );
@@ -1205,13 +1239,30 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAdd
         ),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de atribuição'),e('input',{type:'date',value:form.assignedDate||'',onChange:set('assignedDate')})),
         e('div',{className:'fg'},e('label',{className:'lbl'},'Data de devolução'),e('input',{type:'date',value:form.returnedDate||'',onChange:set('returnedDate')}),e('div',{className:'hint'},'Deixa vazio se ainda não foi devolvido')),
-        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(c=>{const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
+        cfg.campaigns.length>0&&e('div',{className:'fg'},e('label',{className:'lbl'},'Tags de campanha'),e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:5}},...cfg.campaigns.map(camp=>{const c=camp.name||camp;const cc=(cfg.campaignColors||{})[c]||'';return e('span',{key:c,className:'chip'+(form.tags.includes(c)?' sel':''),style:cc&&!form.tags.includes(c)?{background:cc,borderColor:cc,color:'#333'}:{},onClick:()=>toggleTag(c)},c);}))),
         e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.assignedDate&&editAssignment(a.id,form)},'Guardar'))
       );
     }
 
     if(modal==='add-category')return e('div',null,e('div',{className:'mo-title'},'Nova categoria'),e('div',{className:'fg'},e('input',{placeholder:'Ex: Apartamentos',value:form.name||'',onChange:set('name'),autoFocus:true})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addCategory(form.name)},'Guardar')));
-    if(modal==='add-campaign')return e('div',null,e('div',{className:'mo-title'},'Nova campanha / tag'),e('div',{className:'fg'},e('input',{placeholder:'Ex: Memorial, Estudo Bíblico...',value:form.name||'',onChange:set('name'),autoFocus:true})),e('div',{className:'g2',style:{marginTop:14}},e('button',{className:'btn',onClick:onClose},'Cancelar'),e('button',{className:'btn btnp',onClick:()=>form.name&&addCampaign(form.name)},'Guardar')));
+    if(modal==='add-campaign'||modal?.type==='edit-campaign'){
+      const isEdit=modal?.type==='edit-campaign';
+      return e('div',null,
+        e('div',{className:'mo-title'},isEdit?'Editar campanha':'Nova campanha / tag'),
+        e('div',{className:'fg'},e('label',{className:'lbl'},'Nome *'),e('input',{placeholder:'Ex: C.Memorial | A.S.26',value:form.name||'',onChange:set('name'),autoFocus:true})),
+        e('div',{className:'g2'},
+          e('div',{className:'fg'},e('label',{className:'lbl'},'Data de início'),e('input',{type:'date',value:form.startDate||'',onChange:set('startDate')})),
+          e('div',{className:'fg'},e('label',{className:'lbl'},'Data de fim'),e('input',{type:'date',value:form.endDate||'',onChange:set('endDate')}))
+        ),
+        e('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:12}},'As datas são meramente informativas.'),
+        e('div',{className:'g2',style:{marginTop:4}},
+          e('button',{className:'btn',onClick:onClose},'Cancelar'),
+          isEdit
+            ? e('button',{className:'btn btnp',onClick:()=>form.name&&editCampaign(modal.campaign.name||modal.campaign,form)},'Guardar')
+            : e('button',{className:'btn btnp',onClick:()=>form.name&&addCampaign(form)},'Guardar')
+        )
+      );
+    }
     return null;
   };
 
