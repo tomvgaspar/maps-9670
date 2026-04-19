@@ -10,6 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Territórios</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231e293b'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white'>🗺</text></svg>">
 <style>
 :root{--bg:#fff;--bg2:#f8f8f8;--bg3:#efefef;--text:#111;--text2:#666;--bd:rgba(0,0,0,.1);--bd2:rgba(0,0,0,.18);--acc:#1e293b;--acc-fg:#fff;--r:12px;--rsm:8px;--red:#dc2626;--redbg:#fef2f2;--redbdr:#fecaca;--green:#15803d;--amber:#92400e}
 @media(prefers-color-scheme:dark){:root{--bg:#111;--bg2:#1c1c1e;--bg3:#2c2c2e;--text:#f0f0f0;--text2:#888;--bd:rgba(255,255,255,.1);--bd2:rgba(255,255,255,.18);--acc:#e2e8f0;--acc-fg:#111}}
@@ -262,7 +263,7 @@ function App({user}){
 }
 
 function MiniBar({value,max,label}){const h=max>0?Math.max(value>0?6:2,Math.round(value/max*68)):2;return e('div',{className:'bar-col'},e('span',{className:'bar-val'},value),e('div',{style:{flex:1,width:'100%',display:'flex',alignItems:'flex-end'}}),e('div',{className:'bar-body',style:{height:h+'px'}}),e('div',{className:'bar-lbl'},label));}
-function Chart({title,bars}){const max=Math.max(...bars.map(b=>b.v),1);return e('div',{className:'chart-box'},e('div',{className:'chart-title'},title),e('div',{className:'bars'},bars.map((b,i)=>e(MiniBar,{key:i,...b,max}))));}
+function Chart({title,bars}){const max=Math.max(...bars.map(b=>b.v),1);return e('div',{className:'chart-box'},e('div',{className:'chart-title'},title),e('div',{className:'bars'},bars.map((b,i)=>e(MiniBar,{key:i,value:b.v,label:b.l,max}))));}
 
 function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
   const [search,setSearch]=useState('');
@@ -742,6 +743,12 @@ function ReportsView({T,A,AL,P,AS,cfg}){
   },[T,AS,P,fromMs,toMs,selCats,selTags,selGroups,showWorked,showAssigned,showUnworked,showLate]);
 
   const summary={total:results.length,worked:results.filter(r=>r.isWorked).length,assigned:results.filter(r=>r.isAssigned&&!r.isWorked).length,unworked:results.filter(r=>r.isUnworked).length,late:results.filter(r=>r.isLate).length};
+  const workedTids=new Set(results.filter(r=>r.isWorked).map(r=>r.t.id));
+  const allTids=new Set(results.map(r=>r.t.id));
+  const addrsInScope=A.filter(a=>allTids.has(a.territoryId));
+  const logsInScope=AL.filter(l=>allTids.has(l.territoryId)&&(l.date||l.timestamp||0)>=fromMs&&(l.date||l.timestamp||0)<=toMs);
+  const addedInScope=logsInScope.filter(l=>l.action==='add').length;
+  const removedInScope=logsInScope.filter(l=>l.action==='delete').length;
 
   const ChipGroup=({label,items,sel,onToggle,color})=>items.length===0?null:e('div',{style:{marginBottom:10}},
     e('div',{className:'lbl'},label),
@@ -782,7 +789,7 @@ function ReportsView({T,A,AL,P,AS,cfg}){
     ),
 
     e('div',{className:'kpi-grid',style:{marginBottom:12}},
-      [['Total',summary.total,''],['Trabalhados',summary.worked,'kv-g'],['Em mãos',summary.assigned,'kv-b'],['Não trab.',summary.unworked,''],['Em atraso',summary.late,'kv-r']].map(([l,v,c],i)=>
+      [['Total',summary.total,''],['Trabalhados',summary.worked,'kv-g'],['Em mãos',summary.assigned,'kv-b'],['Não trab.',summary.unworked,''],['Em atraso',summary.late,'kv-r'],['Moradas',addrsInScope.length,''],['Adicionadas',addedInScope,'kv-g'],['Removidas',removedInScope,'kv-r']].map(([l,v,c],i)=>
         e('div',{key:i,className:'kpi-cell'},e('div',{className:'kpi-lbl'},l),e('div',{className:'kpi-val '+(c||'')},v))
       )
     ),
@@ -853,15 +860,25 @@ function AddressLogSection({A,AL,fromMs,toMs}){
 }
 
 function SettingsView({cfg,user,onAddCat,onDelCat,onAddCamp,onDelCamp,onSetColor}){
-  const COLORS=['#e2e8f0','#bfdbfe','#bbf7d0','#fde68a','#fecaca','#ddd6fe','#fbcfe8','#fed7aa','#a5f3fc','#d9f99d'];
   const ColorPicker=({item,colorMap,type})=>{
     const [open,setOpen]=useState(false);
+    const [hex,setHex]=useState('');
     const cur=colorMap[item]||'';
+    const applyHex=()=>{const v=hex.trim();if(/^#[0-9a-fA-F]{6}$/.test(v)){onSetColor(type,item,v);setOpen(false);setHex('');}};
     return e('div',{style:{position:'relative',display:'inline-block'}},
-      e('div',{onClick:()=>setOpen(v=>!v),style:{width:20,height:20,borderRadius:4,background:cur||'var(--bg3)',border:'.5px solid var(--bd2)',cursor:'pointer',flexShrink:0}}),
-      open&&e('div',{style:{position:'absolute',top:24,left:0,zIndex:10,background:'var(--bg)',border:'.5px solid var(--bd2)',borderRadius:'var(--rsm)',padding:8,display:'flex',flexWrap:'wrap',gap:5,width:140,boxShadow:'0 4px 12px rgba(0,0,0,.15)'}},
-        e('div',{onClick:()=>{onSetColor(type,item,'');setOpen(false);},style:{width:20,height:20,borderRadius:4,border:'.5px solid var(--bd2)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'var(--text2)'}},'✕'),
-        COLORS.map(c=>e('div',{key:c,onClick:()=>{onSetColor(type,item,c);setOpen(false);},style:{width:20,height:20,borderRadius:4,background:c,cursor:'pointer',border:cur===c?'2px solid var(--acc)':'.5px solid var(--bd)'}}))
+      e('div',{onClick:()=>{setOpen(v=>!v);setHex(cur||'');},style:{width:22,height:22,borderRadius:5,background:cur||'var(--bg3)',border:'.5px solid var(--bd2)',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}},
+        !cur&&e('span',{style:{fontSize:12,color:'var(--text2)',lineHeight:1}},'🎨')
+      ),
+      open&&e('div',{style:{position:'absolute',top:26,left:0,zIndex:20,background:'var(--bg)',border:'.5px solid var(--bd2)',borderRadius:'var(--rsm)',padding:10,width:190,boxShadow:'0 4px 16px rgba(0,0,0,.18)'}},
+        e('div',{style:{fontSize:12,color:'var(--text2)',marginBottom:6}},'Cor em hex'),
+        e('div',{style:{display:'flex',gap:6}},
+          e('input',{placeholder:'#3b82f6',value:hex,onChange:ev=>setHex(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&applyHex(),style:{flex:1,fontSize:13,padding:'6px 8px'}}),
+          e('button',{className:'btn btnp sm',onClick:applyHex,style:{minHeight:32,padding:'4px 10px'}},'OK')
+        ),
+        cur&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:8,cursor:'pointer'},onClick:()=>{onSetColor(type,item,'');setOpen(false);}},
+          e('span',{style:{fontSize:12,color:'var(--red)'}},'× Remover cor')
+        ),
+        e('div',{style:{fontSize:11,color:'var(--text2)',marginTop:6}},'Exemplo: #3b82f6, #ef4444')
       )
     );
   };
