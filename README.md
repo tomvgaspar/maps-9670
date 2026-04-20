@@ -3,16 +3,21 @@
   <source media="(prefers-color-scheme: light)" srcset="screenshots/banner-nt.png">
   <img alt="T.V.G" src="screenshots/banner.png" width="100%">
 </picture>
+<p align="center">
+  <a href="https://tomasvg.com/">
+    <img src="https://img.shields.io/badge/Abrir%20Website-tomasvg.com-FF3B31?style=for-the-badge&logoColor=white" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://tomasvg.com/projetos/maps-9670.html">
+    <img src="https://img.shields.io/badge/Ver%20Projeto-Maps9670-A7E63D?style=for-the-badge&logoColor=white" />
+  </a>
+</p>
 
 <p align="center">
   <img src="screenshots/home-desktop.png" alt="Gestão de Territórios" width="100%"/>
 </p>
 
-<p align="rigth">
-  <a href="https://tomasvg.com/projetos/maps-9670.html">
-    <img src="https://img.shields.io/badge/🚀%20Abrir%20Website-Visitar-28a745?style=for-the-badge" />
-  </a>
-</p>
+
 ---
 ## Territórios
 
