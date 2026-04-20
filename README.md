@@ -1,11 +1,8 @@
 <picture align="center">
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/banner.png">
   <source media="(prefers-color-scheme: light)" srcset="screenshots/banner-nt.png">
-  <img alt="T.V.G" src="screenshots/banner.png">
+  <img alt="T.V.G" src="screenshots/banner.png" width="100%">
 </picture>
-<p align="center">
-  <img src="screenshots/banner.png" alt="T.V.G" width="100%"/>
-</p>
 
 <p align="center">
   <img src="screenshots/home-desktop.png" alt="Gestão de Territórios" width="100%"/>
