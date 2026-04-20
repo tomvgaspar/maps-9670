@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/banner.png">
+  <source media="(prefers-color-scheme: light)" srcset="screenshots/banner-nt.png">
+  <img alt="T.V.G" src="screenshots/banner.png">
+</picture>
 <p align="center">
   <img src="screenshots/banner.png" alt="T.V.G" width="100%"/>
 </p>
