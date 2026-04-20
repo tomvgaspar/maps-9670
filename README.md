@@ -20,8 +20,8 @@ Os territórios livres mostram quando foram trabalhados pela última vez e há q
 <p align="center">
   <img src="screenshots/territories-desktop.png" alt="Gestão de Territórios" width="100%"/>
 </p>
----
 
+---
 ## Moradas
 
 Cada território tem uma lista de moradas com tipo (Homem · Mulher · Casal), notas, data e categoria interna. As moradas marcadas como "Não visitar" aparecem numa secção separada a vermelho.
@@ -32,20 +32,20 @@ Cada remoção fica registada no histórico com data e motivo opcional.
 <p align="center">
   <img src="screenshots/addresses-desktop.png" alt="Gestão de Moradas" width="100%"/>
 </p>
+
+
+
 ---
-
-
-
 ## Publicadores
 
 Registo de publicadores por grupo de serviço. Mostra quais os territórios que cada publicador tem em mãos.
 <p align="center">
   <img src="screenshots/publishers-desktop.png" alt="Gestão de Publicadores" width="100%"/>
 </p>
+
+
+
 ---
-
-
-
 ## Atribuições
 
 Atribuição de territórios a publicadores ou grupos de serviço, com datas e tags de campanha. O sistema alerta automaticamente quando um território está atribuído há mais de 6 meses.
@@ -54,10 +54,10 @@ Filtros por grupo de serviço e campanha. Cada atribuição mostra o tempo decor
 <p align="center">
   <img src="screenshots/assignments-desktop.png" alt="Gestão de Registos" width="100%"/>
 </p>
+
+
+
 ---
-
-
-
 ## Relatórios
 
 Estatísticas por período (3 / 6 / 9 / 12 meses) com filtros por categoria e campanha. Inclui territórios concluídos com percentagem, em mãos, não trabalhados, em atraso e movimentos de moradas (adicionadas e removidas).
@@ -66,10 +66,10 @@ Exportação para PDF com tabela completa e histórico de moradas.
 <p align="center">
   <img src="screenshots/reports-desktop.png" alt="Criação de Relatórios" width="100%"/>
 </p>
+
+
+
 ---
-
-
-
 ## Definições
 
 Gestão de categorias e campanhas com cores personalizadas e datas informativas. Exportação e importação de backup completo de todos os dados.
