@@ -55,6 +55,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-
 .nb-badge{position:absolute;top:5px;right:calc(50% - 18px);background:var(--red);color:#fff;border-radius:20px;font-size:9px;padding:1px 5px;font-weight:600;min-width:16px;text-align:center;letter-spacing:0}
 /* ─── CARDS ─── */
 .card{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;transition:border-color .15s}
+.terr-card{padding:10px 14px;margin-bottom:5px}
 .tap{cursor:pointer}.tap:hover{border-color:var(--bd2)}
 /* ─── FORMS ─── */
 .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -631,30 +632,30 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
   :catColor
   ?{borderLeft:'3px solid '+catColor}
   :{};
-        return e('div',{key:t.id,className:'card tap',style:cardBorder,onClick:()=>onOpen(t)},
-          e('div',{className:'rb'},
-            e('div',{style:{flex:1}},
-              e('div',{style:{fontWeight:600,fontSize:15}},t.num&&e('span',{style:{color:'var(--text2)',marginRight:5}},t.num+' ·'),t.name),
-              e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:2}},addrCnt+' moradas · '+t.category)
+        return e('div',{key:t.id,className:'card tap',style:{...cardBorder,padding:'9px 14px',marginBottom:4},onClick:()=>onOpen(t)},
+          e('div',{style:{display:'flex',alignItems:'center',gap:8,minWidth:0}},
+            e('div',{style:{flex:1,minWidth:0}},
+              e('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}},
+                t.num&&e('span',{style:{fontSize:11,color:'var(--text3)',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'}},t.num,' ·'),
+                e('span',{style:{fontWeight:600,fontSize:14}},t.name),
+                e('span',{style:{fontSize:11,color:'var(--text3)',flexShrink:0}},addrCnt+' moradas')
+              ),
+              e('div',{style:{fontSize:11,color:'var(--text3)',marginTop:3,display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}},
+                a?e('span',null,pub?.name||a.serviceGroup||'Grupo',' · ',fmt(a.assignedAt)):null,
+                a&&st==='late'?e('span',{style:{color:'#FF4C00',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso'):null,
+                a&&st==='soon'?e('span',{style:{color:'#d97706',fontWeight:600}},daysLeft+' dias restantes'):null,
+                !a&&lastW?e('span',null,'Trabalhado em ',fmt(lastW),' · ',monthsAgo(lastW)):null,
+                !a&&!lastW?e('span',{style:{color:'var(--red)'}},'Nunca trabalhado'):null,
+                (a?.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg))
+              )
             ),
-            e('div',{className:'row',style:{gap:5}},
-              st==='late'&&e('span',{className:'badge balert'},'Atrasado'),
-              st==='soon'&&e('span',{className:'badge bamber'},'A expirar'),
-              st==='assigned'&&e('span',{className:'badge bpub'},'Atribuído'),
-              st==='free'&&e('span',{className:'badge bfree'},'Livre')
+            e('span',{style:{flexShrink:0}},
+              st==='late'?e('span',{className:'badge balert'},'Atrasado'):
+              st==='soon'?e('span',{className:'badge bamber'},'A expirar'):
+              st==='assigned'?e('span',{className:'badge bpub'},'Atribuído'):
+              e('span',{className:'badge bfree'},'Livre')
             )
-          ),
-          a&&e('div',{style:{marginTop:6,fontSize:12,color:'var(--text2)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:4}},
-            e('span',null,pub?.name||a.serviceGroup||'Grupo',' · desde ',fmt(a.assignedAt)),
-            st==='late'
-              ? e('span',{style:{color:'#FF4C00',fontWeight:600}},Math.abs(daysLeft)+' dias em atraso')
-              : e('span',{style:{color:st==='soon'?'#F9A219':'var(--text2)',fontWeight:st==='soon'?600:400}},daysLeft>0?daysLeft+' dias restantes':'Hoje expira')
-          ),
-          !a&&lastW&&e('div',{style:{marginTop:5,fontSize:12,color:'var(--text2)'}},
-            'Trabalhado em: ',fmt(lastW),' (',monthsAgo(lastW),')'
-          ),
-          !a&&!lastW&&e('div',{style:{marginTop:5,fontSize:12,color:'var(--red)',fontWeight:500}},'Nunca trabalhado'),
-          a&&(a.tags||[]).length>0&&e('div',{className:'pill-row'},(a.tags||[]).map(tg=>e('span',{key:tg,className:'btag badge'},tg)))
+          )
         );
       })
     ))
