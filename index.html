@@ -292,7 +292,7 @@ function App({user,theme,toggleTheme}){
   const [T,setT]=useState([]),[A,setA]=useState([]),[AL,setAL]=useState([]),[P,setP]=useState([]),[AS,setAS]=useState([]);
   const [cfg,setCfg]=useState({categories:[],campaigns:[],categoryColors:{},campaignColors:{}});
   const cfgRef=useRef({categories:[],campaigns:[],categoryColors:{},campaignColors:{}});
-  const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null);
+  const [loading,setLoading]=useState(true),[view,setView]=useState('dashboard'),[selTid,setSelTid]=useState(null),[modal,setModal]=useState(null),[lateFilter,setLateFilter]=useState(false);
   const ld=useRef(new Set());
   useEffect(()=>{
     const chk=k=>{ld.current.add(k);if(ld.current.size>=6)setLoading(false);};
@@ -355,7 +355,7 @@ function App({user,theme,toggleTheme}){
   };
 
   const openT=t=>{setSelTid(t.id);setView('terr-detail');};
-  const navTo=k=>{if(k!=='territories')setSelTid(null);setView(k);};
+  const navTo=k=>{if(k!=='territories'){setSelTid(null);setLateFilter(false);}setView(k);};
   const navs=[
     {k:'dashboard',l:'Início',ic:e('svg',{viewBox:'0 0 24 24'},e('rect',{x:'3',y:'3',width:'7',height:'7'}),e('rect',{x:'14',y:'3',width:'7',height:'7'}),e('rect',{x:'3',y:'14',width:'7',height:'7'}),e('rect',{x:'14',y:'14',width:'7',height:'7'}))},
     {k:'territories',l:'Territórios',ic:e('svg',{viewBox:'0 0 24 24'},e('polygon',{points:'3,6 9,3 15,6 21,3 21,18 15,21 9,18 3,21'}),e('line',{x1:'9',y1:'3',x2:'9',y2:'18'}),e('line',{x1:'15',y1:'6',x2:'15',y2:'21'}))},
@@ -384,8 +384,8 @@ function App({user,theme,toggleTheme}){
     e('div',{id:'root'},
     e('div',{className:'topbar'},e('div',{className:'topbar-inner'},e('span',{className:'appname'},'Territórios'),e('div',{className:'topbar-right'},e('button',{className:'theme-toggle',onClick:toggleTheme},theme==='light'?e('svg',{viewBox:'0 0 24 24',width:16,height:16,fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round'},e('path',{d:'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'})):e('svg',{viewBox:'0 0 24 24',width:16,height:16,fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round'},e('circle',{cx:12,cy:12,r:5}),e('line',{x1:12,y1:1,x2:12,y2:3}),e('line',{x1:12,y1:21,x2:12,y2:23}),e('line',{x1:4.22,y1:4.22,x2:5.64,y2:5.64}),e('line',{x1:18.36,y1:18.36,x2:19.78,y2:19.78}),e('line',{x1:1,y1:12,x2:3,y2:12}),e('line',{x1:21,y1:12,x2:23,y2:12}),e('line',{x1:4.22,y1:19.78,x2:5.64,y2:18.36}),e('line',{x1:18.36,y1:5.64,x2:19.78,y2:4.22}))),e('span',{className:'sync-dot'},'sync'),e('button',{className:'logout-btn',onClick:()=>{if(confirm('Terminar sessão?'))auth.signOut();}},'Sair')))),
     e('div',{className:'content'},
-      view==='dashboard'&&e(Dashboard,{T,A,AL,P,AS,cfg,stats,onOpen:openT,onGoAS:()=>navTo('assignments')}),
-      view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory')}),
+      view==='dashboard'&&e(Dashboard,{T,A,AL,P,AS,cfg,stats,onOpen:openT,onGoAS:()=>navTo('assignments'),onGoLate:()=>{navTo('territories');setLateFilter(true);}}),
+      view==='territories'&&e(TerritoriesView,{T,A,AS,P,cfg,onOpen:openT,onAdd:()=>setModal('add-territory'),initialStatus:lateFilter?'late':''}),
       view==='terr-detail'&&curT&&e(TerritoryDetail,{territory:curT,A,AL,P,AS,cfg,onBack:()=>setView('territories'),onAddAddr:()=>setModal({type:'add-address',territoryId:curT.id}),onDelAddr:addr=>setModal({type:'delete-address',addr}),onEditAddr:addr=>setModal({type:'edit-address',addr}),onDelete:ops.delTerritory,onEditTerritory:()=>setModal({type:'edit-territory',territory:curT}),onAssign:()=>setModal({type:'assign',territoryId:curT.id}),onReturn:ops.returnAssignment,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDeleteLog:ops.deleteLog,onDeleteAssignment:ops.deleteAssignment,onAddAddrCat:(name)=>ops.addAddrCategory(curT.id,name),onDelAddrCat:(name)=>ops.delAddrCategory(curT.id,name),onAddAddrModal:(cat)=>setModal({type:'add-address',territoryId:curT.id,defaultCat:cat})}),
       view==='publishers'&&e(PublishersView,{T,P,AS,onAdd:()=>setModal('add-publisher'),onDelete:ops.delPublisher}),
       view==='assignments'&&e(AssignmentsView,{T,P,AS,stats,onAdd:()=>setModal({type:'assign',territoryId:null}),onReturn:ops.returnAssignment,onOpen:openT,onEdit:a=>setModal({type:'edit-assignment',assignment:a}),onDelete:ops.deleteAssignment}),
@@ -403,7 +403,7 @@ function App({user,theme,toggleTheme}){
 function MiniBar({value,max,label}){const h=max>0?Math.max(value>0?6:2,Math.round(value/max*68)):2;return e('div',{className:'bar-col'},e('span',{className:'bar-val'},value),e('div',{style:{flex:1,width:'100%',display:'flex',alignItems:'flex-end'}}),e('div',{className:'bar-body',style:{height:h+'px'}}),e('div',{className:'bar-lbl'},label));}
 function Chart({title,bars}){const max=Math.max(...bars.map(b=>b.v),1);return e('div',{className:'chart-box'},e('div',{className:'chart-title'},title),e('div',{className:'bars'},bars.map((b,i)=>e(MiniBar,{key:i,value:b.v,label:b.l,max}))));}
 
-function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
+function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS,onGoLate}){
   const [search,setSearch]=useState('');
   const [period,setPeriod]=useState(12);
   const [selCats,setSelCats]=useState([]);
@@ -463,7 +463,7 @@ function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
   return e('div',null,
     dynStats.alerts.length>0&&e('div',{className:'alert-box'},
       e('div',{className:'alert-title'},dynStats.alerts.length+' território(s) há mais de 6 meses'),
-      dynStats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToDuration(now-a.assignedAt)),e('button',{className:'btn btnd sm',onClick:onGoAS},'Ver'));}),
+      dynStats.alerts.slice(0,3).map(a=>{const t=T.find(x=>x.id===a.territoryId);const p=a.publisherId?P.find(x=>x.id===a.publisherId):null;return e('div',{key:a.id,className:'alert-row'},e('span',null,(t?.num?t.num+' · ':'')+t?.name),e('span',null,(p?.name||a.serviceGroup||'?')+' · '+msToDuration(now-a.assignedAt)),e('button',{className:'btn btnd sm',onClick:onGoLate},'Ver'));}),
       dynStats.alerts.length>3&&e('div',{style:{fontSize:12,color:'var(--red)',paddingTop:4}},'+'+( dynStats.alerts.length-3)+' mais')
     ),
 
@@ -537,8 +537,8 @@ function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS}){
 }
 
 
-function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
-  const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState('');
+function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd,initialStatus}){
+  const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState(initialStatus||'');
   const now=Date.now();
   const SIX_M=weeksMs(26),WARN_M=weeksMs(20);
   const aMap=useMemo(()=>{const m={};AS.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[AS]);
@@ -626,9 +626,9 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
         const addrCnt=A.filter(x=>x.territoryId===t.id).length;
         const catColor=catColors[cat]||catColors[t.category]||'';
         const cardBorder=st==='late'
-  ?{borderLeft:'3px solid #FF4C00',background:'rgba(255,76,0,0.04)'}
+  ?{border:'2px solid #FF4C00',background:'rgba(255,76,0,0.04)'}
   :st==='soon'
-  ?{borderLeft:'3px solid #d97706',background:'rgba(217,119,6,0.04)'}
+  ?{border:'2px solid #d97706',background:'rgba(217,119,6,0.04)'}
   :{};
         return e('div',{key:t.id,className:'card tap',style:{...cardBorder,padding:'9px 14px',marginBottom:4},onClick:()=>onOpen(t)},
           e('div',{style:{display:'flex',alignItems:'center',gap:8,minWidth:0}},
