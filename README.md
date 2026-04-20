@@ -1,4 +1,4 @@
-<picture>
+<picture align="center">
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/banner.png">
   <source media="(prefers-color-scheme: light)" srcset="screenshots/banner-nt.png">
   <img alt="T.V.G" src="screenshots/banner.png">
