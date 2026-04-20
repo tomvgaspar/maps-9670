@@ -626,16 +626,15 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd}){
         const addrCnt=A.filter(x=>x.territoryId===t.id).length;
         const catColor=catColors[cat]||catColors[t.category]||'';
         const cardBorder=st==='late'
-  ?{borderLeft:'3px solid #FF4C00'}
+  ?{borderLeft:'3px solid #FF4C00',background:'rgba(255,76,0,0.04)'}
   :st==='soon'
-  ?{borderLeft:'3px solid #d97706'}
-  :catColor
-  ?{borderLeft:'3px solid '+catColor}
+  ?{borderLeft:'3px solid #d97706',background:'rgba(217,119,6,0.04)'}
   :{};
         return e('div',{key:t.id,className:'card tap',style:{...cardBorder,padding:'9px 14px',marginBottom:4},onClick:()=>onOpen(t)},
           e('div',{style:{display:'flex',alignItems:'center',gap:8,minWidth:0}},
             e('div',{style:{flex:1,minWidth:0}},
               e('div',{style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}},
+                catColor&&e('span',{style:{width:8,height:8,borderRadius:2,background:catColor,flexShrink:0,display:'inline-block'}}),
                 t.num&&e('span',{style:{fontSize:11,color:'var(--text3)',fontWeight:500,flexShrink:0,whiteSpace:'nowrap'}},t.num,' ·'),
                 e('span',{style:{fontWeight:600,fontSize:14}},t.name),
                 e('span',{style:{fontSize:11,color:'var(--text3)',flexShrink:0}},addrCnt+' moradas')
