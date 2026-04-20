@@ -1,25 +1,3 @@
-<p align="center">
-  <img src="screenshots/title.svg" alt="Gestão de Territórios" width="100%"/>
-</p>
-
-<p align="center">
-  <img src="screenshots/dashboard.svg" alt="Dashboard" width="100%" style="border-radius:12px; margin-bottom:12px"/>
-</p>
-
-<p align="center">
-  <img src="screenshots/territories.svg" alt="Territórios" width="100%" style="border-radius:12px; margin-bottom:12px"/>
-</p>
-
-<p align="center">
-  <img src="screenshots/addresses.svg" alt="Moradas" width="100%" style="border-radius:12px; margin-bottom:12px"/>
-</p>
-
-<p align="center">
-  <img src="screenshots/reports.svg" alt="Relatórios" width="100%" style="border-radius:12px"/>
-</p>
-
----
-
 ## Territórios
 
 Lista completa de territórios organizados por categoria. Cada categoria tem uma cor associada visível nos cards e nos filtros.
