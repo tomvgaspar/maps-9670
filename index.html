@@ -338,7 +338,25 @@ function App({user,theme,toggleTheme}){
     delTerritory:async id=>{if(!confirm('Apagar território?'))return;const b=db.batch();A.filter(a=>a.territoryId===id).forEach(a=>b.delete(db.collection('addresses').doc(a.id)));AS.filter(a=>a.territoryId===id).forEach(a=>b.delete(db.collection('assignments').doc(a.id)));b.delete(db.collection('territories').doc(id));await b.commit();setView('territories');setSelTid(null);},
     addAddress:async(tid,f)=>{const t=T.find(x=>x.id===tid);const dt=fromDate(f.date||todayStr());await db.collection('addresses').add({territoryId:tid,text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,date:dt,createdAt:TS()});await db.collection('addressLog').add({action:'add',territoryId:tid,territoryName:t?.name||'',addressText:f.text,addressType:f.type,date:dt,timestamp:TS()});setModal(null);},
     deleteAddress:async(addr,date,reason)=>{const t=T.find(x=>x.id===addr.territoryId);await db.collection('addresses').doc(addr.id).delete();await db.collection('addressLog').add({action:'delete',territoryId:addr.territoryId,territoryName:t?.name||'',addressText:addr.text,addressType:addr.type,reason:reason||'',date:fromDate(date||todayStr()),timestamp:TS()});setModal(null);},
-    editAddress:async(id,f)=>{const dt=fromDate(f.date||todayStr());await db.collection('addresses').doc(id).update({text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,addrCategory:f.addrCategory||'',date:dt});setModal(null);},
+    editAddress:async(id,f)=>{
+      const addr=A.find(a=>a.id===id);
+      const dt=fromDate(f.date||todayStr());
+      if(f.territoryId&&addr&&f.territoryId!==addr.territoryId){
+        // Move to new territory
+        const newT=T.find(t=>t.id===f.territoryId);
+        const oldT=T.find(t=>t.id===addr.territoryId);
+        const reason='Mudou para o território '+(newT?.num?newT.num+' · ':'')+newT?.name;
+        // Log removal from old territory
+        await db.collection('addressLog').add({territoryId:addr.territoryId,territoryName:oldT?.name||'',addressText:addr.text,addressType:addr.type,action:'delete',reason,date:dt,timestamp:TS()});
+        // Update address with new territory
+        await db.collection('addresses').doc(id).update({territoryId:f.territoryId,text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,addrCategory:'',date:dt});
+        // Log addition in new territory
+        await db.collection('addressLog').add({territoryId:f.territoryId,territoryName:newT?.name||'',addressText:f.text,addressType:f.type,action:'add',date:dt,timestamp:TS()});
+      } else {
+        await db.collection('addresses').doc(id).update({text:f.text,type:f.type,notes:f.notes||'',doNotVisit:f.doNotVisit||false,addrCategory:f.addrCategory||'',date:dt});
+      }
+      setModal(null);
+    },
     deleteLog:async id=>{if(!confirm('Apagar este registo do histórico?'))return;await db.collection('addressLog').doc(id).delete();},
     addPublisher:async f=>{await db.collection('publishers').add({name:f.name,serviceGroup:f.serviceGroup||'',createdAt:TS()});setModal(null);},
     delPublisher:async id=>{if(!confirm('Apagar?'))return;await db.collection('publishers').doc(id).delete();},
@@ -538,9 +556,19 @@ function Dashboard({T,A,AL,P,AS,cfg,stats,onOpen,onGoAS,onGoLate}){
 
 
 function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd,initialStatus}){
-  const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState(initialStatus||'');
+  const [search,setSearch]=useState(''),[fCat,setFCat]=useState(''),[fStatus,setFStatus]=useState(initialStatus||''),[addrSearch,setAddrSearch]=useState(''),[addrResults,setAddrResults]=useState(null);
   const now=Date.now();
   const SIX_M=weeksMs(26),WARN_M=weeksMs(20);
+
+  const addrSearchResults=useMemo(()=>{
+    const q=addrSearch.trim().toLowerCase();
+    if(!q)return null;
+    const matches=A.filter(a=>a.text&&a.text.toLowerCase().includes(q));
+    return matches.map(a=>{
+      const t=T.find(x=>x.id===a.territoryId);
+      return{a,t};
+    }).filter(r=>r.t);
+  },[addrSearch,A,T]);
   const aMap=useMemo(()=>{const m={};AS.filter(a=>!a.returnedAt).forEach(a=>m[a.territoryId]=a);return m;},[AS]);
 
   const lastWorkedMap=useMemo(()=>{
@@ -600,6 +628,25 @@ function TerritoriesView({T,A,AS,P,cfg,onOpen,onAdd,initialStatus}){
     e('div',{className:'rb',style:{marginBottom:10}},
       e('input',{placeholder:'Pesquisar nome, categoria, publicador ou grupo...',value:search,onChange:ev=>setSearch(ev.target.value),style:{flex:1}}),
       e('button',{className:'btn btnp sm',onClick:onAdd},'+ Território')
+    ),
+    e('div',{style:{marginBottom:8,position:'relative'}},
+      e('input',{placeholder:'Pesquisar por morada...',value:addrSearch,onChange:ev=>setAddrSearch(ev.target.value),style:{width:'100%'}}),
+      addrSearch&&e('span',{onClick:()=>setAddrSearch(''),style:{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',cursor:'pointer',color:'var(--text3)',fontSize:16}})
+    ),
+    addrSearchResults!==null&&e('div',{style:{marginBottom:12,border:'1px solid var(--bd)',borderRadius:'var(--r)',overflow:'hidden'}},
+      addrSearchResults.length===0
+        ? e('div',{style:{padding:'12px 16px',fontSize:13,color:'var(--text3)'}},'Nenhuma morada encontrada.')
+        : addrSearchResults.map(({a,t})=>e('div',{key:a.id,style:{padding:'10px 16px',borderBottom:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:10,cursor:'pointer'},onClick:()=>onOpen(t)},
+            e('div',{style:{flex:1}},
+              e('div',{style:{fontSize:13,fontWeight:500}},a.text),
+              a.notes&&e('div',{style:{fontSize:12,color:'var(--text2)',marginTop:1}},a.notes)
+            ),
+            e('div',{style:{fontSize:12,color:'var(--text3)',textAlign:'right',flexShrink:0}},
+              e('div',null,t.num?t.num+' · '+t.name:t.name),
+              e('div',null,t.category)
+            ),
+            e('span',{className:'badge b'+a.type},TL[a.type])
+          ))
     ),
     e('div',{style:{marginBottom:6,display:'flex',flexWrap:'wrap',gap:3}},
       [['','Todos',''],['free','Livres ('+counts.free+')','bfree'],['assigned','Atribuídos ('+counts.assigned+')','bpub'],['soon','A expirar ('+counts.soon+')','bamber'],['late','Atrasados ('+counts.late+')','balert']].map(([k,l])=>
@@ -1373,7 +1420,7 @@ function PublisherSearch({publishers,value,onChange}){
 }
 
 function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAddress,deleteAddress,editAddress,addPublisher,addCategory,addCampaign,editCampaign,addAssignment,editAssignment}){
-  const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||'',publisherId:a.publisherId||'',serviceGroup:a.serviceGroup||''};} if(modal?.type==='edit-address'){const a=modal.addr;return{text:a.text,type:a.type,notes:a.notes||'',doNotVisit:a.doNotVisit||false,addrCategory:a.addrCategory||'',date:msToDate(a.date||a.createdAt)};}
+  const init=()=>{if(modal?.type==='edit-assignment'){const a=modal.assignment;return{assignedDate:msToDate(a.assignedAt),returnedDate:msToDate(a.returnedAt),tags:a.tags||[],notes:a.notes||'',publisherId:a.publisherId||'',serviceGroup:a.serviceGroup||''};} if(modal?.type==='edit-address'){const a=modal.addr;return{text:a.text,type:a.type,notes:a.notes||'',doNotVisit:a.doNotVisit||false,addrCategory:a.addrCategory||'',territoryId:a.territoryId||'',date:msToDate(a.date||a.createdAt)};}
  if(modal?.type==='edit-territory'){const t=modal.territory;return{num:t.num||'',name:t.name,category:t.category||'',mapsLink:t.mapsLink||''};} if(modal?.type==='edit-campaign'){const c=modal.campaign;return{name:c.name||c,startDate:c.startDate||'',endDate:c.endDate||''};}
  return{date:todayStr(),assignedDate:todayStr(),returnedDate:'',tags:[],assignTo:'publisher',doNotVisit:false,addrCategory:modal?.defaultCat||''};};
   const [form,setForm]=useState(init);
@@ -1407,7 +1454,12 @@ function ModalRoot({modal,T,P,AS,cfg,A,onClose,addTerritory,editTerritory,addAdd
           e('div',{className:'chk-box'+(form.doNotVisit?' on':'')},form.doNotVisit&&e('span',{style:{color:'#fff',fontSize:13,fontWeight:700}},'✕')),
           e('span',{style:{fontSize:14,color:form.doNotVisit?'var(--red)':'var(--text)'}},'Não visitar')
         ),
-        e('div',{className:'g2',style:{marginTop:14}},
+        isEdit&&e('div',{className:'fg'},
+          e('label',{className:'lbl'},'Território'),
+          e('select',{value:form.territoryId||'',onChange:set('territoryId')},
+            T.slice().sort((a,b)=>((a.num||'')+a.name).localeCompare((b.num||'')+b.name)).map(t=>e('option',{key:t.id,value:t.id},(t.num?t.num+' · ':'')+t.name))
+          )
+        ),e('div',{className:'g2',style:{marginTop:14}},
           e('button',{className:'btn',onClick:onClose},'Cancelar'),
           isEdit
             ? e('button',{className:'btn btnp',onClick:()=>form.text&&form.type&&editAddress(addr.id,form)},'Guardar')
